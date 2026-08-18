@@ -432,7 +432,7 @@ function Header({ user, onLogout, view, setView }) {
             <div className="text-[1.15rem] text-chp-grayLight leading-tight">{user.role === "coordinador" ? "Coordinador de Proyectos" : "Ingeniero de Obra"}</div>
           </div>
           <div className="w-[3.8rem] h-[3.8rem] rounded-full bg-chp-blue text-white flex items-center justify-center font-bold text-[1.4rem] shrink-0">
-            {user.nombre.charAt(0)}{user.apellidos.charAt(0)}
+            {(user.nombre || "?").charAt(0)}{(user.apellidos || "").charAt(0)}
           </div>
           <button onClick={onLogout} title="Cerrar sesión" className="w-[3.8rem] h-[3.8rem] rounded-[0.8rem] border border-gray-200 flex items-center justify-center text-chp-grayLight hover:text-red-600 hover:border-red-200 transition-all">
             <Icon.logout className="w-[1.8rem] h-[1.8rem]" />
@@ -1124,7 +1124,7 @@ function Dashboard({ projects, reports, users }) {
   const volumenTotal = round(reports.reduce((s, r) => s + (r.volReal || 0), 0), 2);
   const expansionProm = reports.length ? round(reports.reduce((s, r) => s + (r.porcentajeExpansion || 0), 0) / reports.length, 2) : 0;
 
-  const barLabels = projects.map(p => p.nombre.length > 18 ? p.nombre.slice(0, 16) + "…" : p.nombre);
+  const barLabels = projects.map(p => (p.nombre || "Sin nombre").length > 18 ? (p.nombre || "Sin nombre").slice(0, 16) + "…" : (p.nombre || "Sin nombre"));
   const barProgramado = projects.map(p => p.pilotesProgramados || 0);
   const barEjecutado = projects.map(p => reports.filter(r => r.proyectoId === p.id).length);
 
@@ -1777,11 +1777,32 @@ function NoProfileScreen({ email, onLogout }) {
   );
 }
 
+function ProfileErrorScreen({ email, message, onLogout }) {
+  return (
+    <div className="min-h-screen flex items-center justify-center px-[2rem]">
+      <Card className="p-[3.2rem] max-w-[54rem] text-center">
+        <Icon.alert className="w-[4rem] h-[4rem] text-red-500 mx-auto mb-[1.6rem]" />
+        <h1 className="text-[2rem] font-bold text-red-600 mb-[1rem]">No se pudo cargar tu perfil</h1>
+        <p className="text-[1.4rem] text-chp-grayLight mb-[1.6rem]">
+          Tu cuenta ({email}) inició sesión correctamente, pero Firestore rechazó la consulta de tu perfil.
+          Esto casi siempre significa que las reglas de seguridad de Firestore no están publicadas,
+          o que hay un error de escritura en ellas.
+        </p>
+        <p className="text-[1.2rem] text-left bg-gray-50 rounded-[0.8rem] p-[1.4rem] font-mono text-red-700 mb-[2rem] overflow-x-auto">
+          {message}
+        </p>
+        <Button variant="secondary" onClick={onLogout}>Cerrar sesión</Button>
+      </Card>
+    </div>
+  );
+}
+
 function App() {
   const [authReady, setAuthReady] = useState(false);
   const [firebaseUser, setFirebaseUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [profileReady, setProfileReady] = useState(false);
+  const [profileError, setProfileError] = useState(null);
 
   const [users, setUsers] = useState([]);
   const [projects, setProjects] = useState([]);
@@ -1809,10 +1830,20 @@ function App() {
   useEffect(() => {
     if (!firebaseUser) return;
     setProfileReady(false);
-    const unsub = fsSubscribeDoc("usuarios", firebaseUser.uid, doc => {
-      setProfile(doc);
-      setProfileReady(true);
-    });
+    setProfileError(null);
+    const unsub = fsSubscribeDoc(
+      "usuarios",
+      firebaseUser.uid,
+      doc => {
+        setProfile(doc);
+        setProfileReady(true);
+      },
+      err => {
+        console.error("Error cargando el perfil:", err);
+        setProfileError(err.message || String(err));
+        setProfileReady(true);
+      }
+    );
     return unsub;
   }, [firebaseUser]);
 
@@ -1859,6 +1890,7 @@ function App() {
   if (!authReady) return <LoadingScreen label="Cargando..." />;
   if (!firebaseUser) return <LoginScreen />;
   if (!profileReady) return <LoadingScreen label="Cargando tu perfil..." />;
+  if (profileError) return <ProfileErrorScreen email={firebaseUser.email} message={profileError} onLogout={handleLogout} />;
   if (!profile) return <NoProfileScreen email={firebaseUser.email} onLogout={handleLogout} />;
 
   const isCoord = currentUser.role === "coordinador";
@@ -1904,7 +1936,49 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+/* =========================================================================
+   RED DE SEGURIDAD — si algo falla al renderizar, mostrar un mensaje
+   legible en vez de dejar la pantalla en blanco.
+========================================================================= */
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidCatch(error, info) {
+    console.error("Error capturado por ErrorBoundary:", error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen flex items-center justify-center px-[2rem]">
+          <div className="bg-white rounded-[1.4rem] border border-red-200 shadow-lg p-[3.2rem] max-w-[56rem] text-center">
+            <p className="text-[2rem] font-bold text-red-600 mb-[1rem]">Ocurrió un error inesperado</p>
+            <p className="text-[1.4rem] text-chp-grayLight mb-[1.6rem]">
+              Algo falló al cargar esta pantalla. Suele deberse a un dato faltante o mal escrito en Firestore
+              (por ejemplo, un campo vacío en el perfil de un usuario o en un proyecto).
+            </p>
+            <p className="text-[1.2rem] text-left bg-gray-50 rounded-[0.8rem] p-[1.4rem] font-mono text-red-700 mb-[1.6rem] overflow-x-auto">
+              {String(this.state.error && this.state.error.message)}
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="bg-chp-blue text-white rounded-[0.8rem] px-[2rem] py-[1.1rem] font-semibold"
+            >
+              Recargar la página
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<ErrorBoundary><App /></ErrorBoundary>);
 </script>
 </body>
 </html>
