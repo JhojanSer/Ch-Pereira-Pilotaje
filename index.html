@@ -107,7 +107,7 @@ const EQUIPOS_PERFORACION = [
   "Otro"
 ];
 const TIPOS_PERFORACION = ["En seco", "Lodos (bentonita)", "Lodos (polímeros)"];
-const TIPOS_CONCRETO = ["3000 PSI", "4000 PSI", "Tremie", "Otro"];
+const TIPOS_CONCRETO = ["3000 PSI", "3500 PSI", "4000 PSI", "5000 PSI", "Tremie", "Tornillo autocompactante", "Tremie tornillo", "Otro"];
 const UNIDADES_ACTIVIDAD = ["m", "m²", "m³", "kg", "ton", "un", "ml", "glb", "hrs", "Otra"];
 /* =========================================================================
    PERSISTENCIA — Firestore (colecciones: usuarios, proyectos, reportes)
@@ -1064,15 +1064,31 @@ function BarChartCanvas({ labels, programado, ejecutado }) {
       data: {
         labels,
         datasets: [
-          { label: "Programados", data: programado, backgroundColor: "#C9D3DA", borderRadius: 6 },
-          { label: "Ejecutados", data: ejecutado, backgroundColor: "#1A5276", borderRadius: 6 }
+          { label: "Programados (decenas)", data: programado, backgroundColor: "#C9D3DA", borderRadius: 6 },
+          { label: "Ejecutados (decenas)", data: ejecutado, backgroundColor: "#1A5276", borderRadius: 6 }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: "bottom", labels: { font: { size: 12 } } } },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        plugins: {
+          legend: { position: "bottom", labels: { font: { size: 12 } } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const pilotesReales = Math.round(ctx.parsed.y * 10);
+                return ctx.dataset.label.replace(" (decenas)", "") + ": " + pilotesReales + " pilotes";
+              }
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0, stepSize: 1 },
+            title: { display: true, text: "N° de pilotes ÷ 10 (cada unidad = 10 pilotes)", font: { size: 11 } }
+          }
+        }
       }
     });
     return () => { if (chartRef.current) chartRef.current.destroy(); };
@@ -1125,8 +1141,8 @@ function Dashboard({ projects, reports, users }) {
   const expansionProm = reports.length ? round(reports.reduce((s, r) => s + (r.porcentajeExpansion || 0), 0) / reports.length, 2) : 0;
 
   const barLabels = projects.map(p => (p.nombre || "Sin nombre").length > 18 ? (p.nombre || "Sin nombre").slice(0, 16) + "…" : (p.nombre || "Sin nombre"));
-  const barProgramado = projects.map(p => p.pilotesProgramados || 0);
-  const barEjecutado = projects.map(p => reports.filter(r => r.proyectoId === p.id).length);
+  const barProgramado = projects.map(p => round((p.pilotesProgramados || 0) / 10, 1));
+  const barEjecutado = projects.map(p => round(reports.filter(r => r.proyectoId === p.id).length / 10, 1));
 
   const sortedByDate = [...reports].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
   const lineLabels = sortedByDate.map(r => fmtFecha(r.fecha));
