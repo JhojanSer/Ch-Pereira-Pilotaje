@@ -100,14 +100,16 @@ const LOGO_SRC = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAACu4AAAKECAYAAADi
    CONSTANTES DE DOMINIO (según procedimiento de excavación tipo Kelly)
 ========================================================================= */
 const EQUIPOS_PERFORACION = [
-  "Soilmec SR-30",
-  "Soilmec R-312-20",
-  "Kohering",
-  "Acker",
+  "Piloteadora Soilmec SR 30",
+  "Piloteadora Soilmec SR 312 - 200",
+  "Piloteadora Soilmec SR 45",
+  "Piloteadora Soilmec SF-50",
+  "Piloteadora Bauer",
   "Otro"
 ];
 const TIPOS_PERFORACION = ["En seco", "Lodos (bentonita)", "Lodos (polímeros)"];
-const TIPOS_CONCRETO = ["3000 PSI", "3500 PSI", "4000 PSI", "5000 PSI", "Tremie", "Tornillo autocompactante", "Tremie tornillo", "Otro"];
+const TIPOS_CONCRETO = ["Tremie", "Tremie Tornillo", "Tornillo Autocompactante"];
+const RESISTENCIAS_CONCRETO = ["3000 PSI", "3500 PSI", "4000 PSI", "4500 PSI", "5000 PSI"];
 const UNIDADES_ACTIVIDAD = ["m", "m²", "m³", "kg", "ton", "un", "ml", "glb", "hrs", "Otra"];
 /* =========================================================================
    PERSISTENCIA — Firestore (colecciones: usuarios, proyectos, reportes)
@@ -212,10 +214,12 @@ function Field({ label, children, required, hint }) {
 
 function TextInput(props) {
   const { className, ...rest } = props;
+  const autoInputMode = props.type === "number" ? "decimal" : undefined;
   return (
     <input
+      inputMode={autoInputMode}
       {...rest}
-      className={"field-focus border-[0.15rem] border-gray-200 rounded-[0.8rem] px-[1.4rem] py-[1.1rem] text-[1.5rem] bg-white transition-all " + (className || "")}
+      className={"field-focus border-[0.15rem] border-gray-200 rounded-[0.8rem] px-[1.4rem] py-[1.1rem] text-[1.6rem] sm:text-[1.5rem] bg-white transition-all " + (className || "")}
     />
   );
 }
@@ -276,6 +280,92 @@ function Toast({ message, onClose }) {
   );
 }
 
+/* =========================================================================
+   MODAL genérico — para ver el detalle completo de un pilote o actividad
+========================================================================= */
+function Modal({ title, onClose, children }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-[1.6rem]" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/40"></div>
+      <div
+        className="relative bg-white rounded-[1.4rem] shadow-2xl max-w-[64rem] w-full max-h-[86vh] overflow-y-auto pop-in"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-[2.4rem] py-[1.8rem] flex items-center justify-between">
+          <p className="text-[1.8rem] font-bold text-chp-blue">{title}</p>
+          <button onClick={onClose} className="w-[3.4rem] h-[3.4rem] rounded-[0.8rem] flex items-center justify-center text-chp-grayLight hover:text-chp-blue hover:bg-chp-bg">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+        <div className="px-[2.4rem] py-[2rem]">{children}</div>
+      </div>
+    </div>
+  );
+}
+function DetailRow({ label, value }) {
+  return (
+    <div className="py-[0.9rem] border-b border-gray-100 grid grid-cols-[16rem_1fr] gap-[1rem]">
+      <span className="text-[1.25rem] font-semibold text-chp-grayLight uppercase tracking-wide">{label}</span>
+      <span className="text-[1.4rem]">{value === "" || value === undefined || value === null ? "—" : String(value)}</span>
+    </div>
+  );
+}
+
+function ReportDetailModal({ report, projectName, engineerName, onClose }) {
+  const r = report;
+  return (
+    <Modal title={"Pilote " + r.elemento} onClose={onClose}>
+      <div className="grid gap-[0.2rem]">
+        <DetailRow label="Consecutivo" value={"#" + r.consecutivo} />
+        <DetailRow label="Fecha" value={fmtFecha(r.fecha)} />
+        <DetailRow label="Proyecto" value={projectName(r.proyectoId)} />
+        <DetailRow label="Contratante" value={r.contratante} />
+        <DetailRow label="Responsable" value={r.responsable} />
+        <DetailRow label="Ingeniero (usuario)" value={engineerName(r.ingenieroId)} />
+        <DetailRow label="Elemento N°" value={r.elemento} />
+        <DetailRow label="Diámetro" value={r.diametro + " m"} />
+        <DetailRow label="Profundidad" value={r.profundidad + " m"} />
+        <DetailRow label="Tipo de concreto" value={r.tipoConcreto} />
+        <DetailRow label="Resistencia del concreto" value={r.resistenciaConcreto} />
+        <DetailRow label="N° Mixer / Empresa" value={r.mixer} />
+        <DetailRow label="Longitud de excavación" value={r.longExcavacion + " m"} />
+        <DetailRow label="Longitud de concreto" value={r.longConcreto + " m"} />
+        <DetailRow label="Volumen teórico" value={r.volTeorico + " m³"} />
+        <DetailRow label="Volumen real" value={r.volReal + " m³"} />
+        <DetailRow label="% Expansión" value={r.porcentajeExpansion + "%"} />
+        <DetailRow label="Equipo de perforación" value={r.equipoPerforacion} />
+        <DetailRow label="Tipo de perforación" value={r.tipoPerforacion} />
+        <DetailRow label="Fecha de excavación" value={fmtFecha(r.fechaExcavacion)} />
+        <DetailRow label="Hora inicio excavación" value={r.horaInicioExcavacion} />
+        <DetailRow label="Duración excavación" value={r.duracionExcavacion + " min"} />
+        <DetailRow label="Hora inicio fundida" value={r.horaInicioFundida} />
+        <DetailRow label="Duración fundida" value={r.duracionFundida + " min"} />
+        <DetailRow label="Acero vertical" value={r.aceroVertical} />
+        <DetailRow label="Acero transversal" value={r.aceroTransversal} />
+        <DetailRow label="Observaciones" value={r.observaciones} />
+      </div>
+    </Modal>
+  );
+}
+
+function ActivityDetailModal({ avance, projectName, engineerName, onClose }) {
+  const a = avance;
+  return (
+    <Modal title={a.actividadNombre} onClose={onClose}>
+      <div className="grid gap-[0.2rem]">
+        <DetailRow label="Fecha" value={fmtFecha(a.fecha)} />
+        <DetailRow label="Proyecto" value={projectName(a.proyectoId)} />
+        <DetailRow label="Actividad" value={a.actividadNombre} />
+        <DetailRow label="Cantidad ejecutada" value={a.cantidadEjecutada + " " + a.unidad} />
+        <DetailRow label="Responsable" value={a.responsable} />
+        <DetailRow label="Ingeniero (usuario)" value={engineerName(a.ingenieroId)} />
+        <DetailRow label="Observaciones" value={a.observaciones} />
+      </div>
+    </Modal>
+  );
+}
+
+
 /* Icon set (inline SVG, sin dependencias externas) */
 const Icon = {
   logout: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
@@ -293,7 +383,8 @@ const Icon = {
   check: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>,
   alert: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
   clipboard: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12l2 2 4-4"/></svg>,
-  minus: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M5 12h14"/></svg>
+  minus: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M5 12h14"/></svg>,
+  eye: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
 };
 
 /* =========================================================================
@@ -469,6 +560,7 @@ function emptyReport(user, projects, reports) {
     diametro: "",
     profundidad: "",
     tipoConcreto: TIPOS_CONCRETO[0],
+    resistenciaConcreto: RESISTENCIAS_CONCRETO[0],
     mixer: "",
     longExcavacion: "",
     longConcreto: "",
@@ -672,6 +764,11 @@ function ReportForm({ user, projects, reports, onSave, editing, onDoneEditing, s
                   {TIPOS_CONCRETO.map(t => <option key={t} value={t}>{t}</option>)}
                 </SelectInput>
               </Field>
+              <Field label="Resistencia del concreto">
+                <SelectInput value={form.resistenciaConcreto} onChange={e => update("resistenciaConcreto", e.target.value)}>
+                  {RESISTENCIAS_CONCRETO.map(r => <option key={r} value={r}>{r}</option>)}
+                </SelectInput>
+              </Field>
               <Field label="N° de Mixer / Empresa">
                 <TextInput value={form.mixer} onChange={e => update("mixer", e.target.value)} placeholder="Ej: Concrecol — Mixer 14" />
               </Field>
@@ -765,6 +862,7 @@ function ReportForm({ user, projects, reports, onSave, editing, onDoneEditing, s
               <div className="grid sm:grid-cols-2 gap-y-[0.6rem] text-[1.35rem]">
                 <span>Elemento: <strong>{form.elemento || "—"}</strong></span>
                 <span>Proyecto: <strong>{(myProjects.find(p=>p.id===form.proyectoId) || {}).nombre || "—"}</strong></span>
+                <span>Concreto: <strong>{form.tipoConcreto} · {form.resistenciaConcreto}</strong></span>
                 <span>Volumen teórico: <strong>{round(volTeorico,3)} m³</strong></span>
                 <span>Volumen real: <strong>{form.volReal || 0} m³</strong></span>
                 <span>Expansión: <strong>{round(expansion,2)}%</strong></span>
@@ -1047,14 +1145,14 @@ function KPICard({ label, value, tone }) {
     gray: "text-chp-gray"
   };
   return (
-    <Card className="p-[2rem]">
-      <p className="text-[1.25rem] font-semibold text-chp-grayLight uppercase tracking-wide mb-[0.6rem]">{label}</p>
-      <p className={"text-[3rem] font-extrabold " + (tones[tone] || tones.blue)}>{value}</p>
+    <Card className="p-[1.4rem] sm:p-[2rem]">
+      <p className="text-[1.1rem] sm:text-[1.25rem] font-semibold text-chp-grayLight uppercase tracking-wide mb-[0.4rem] sm:mb-[0.6rem] leading-tight">{label}</p>
+      <p className={"text-[2.1rem] sm:text-[3rem] font-extrabold " + (tones[tone] || tones.blue)}>{value}</p>
     </Card>
   );
 }
 
-function BarChartCanvas({ labels, programado, ejecutado }) {
+function BarChartCanvas({ labels, porcentajes, ejecutadosReales, programadosReales }) {
   const ref = useRef(null);
   const chartRef = useRef(null);
   useEffect(() => {
@@ -1064,36 +1162,45 @@ function BarChartCanvas({ labels, programado, ejecutado }) {
       data: {
         labels,
         datasets: [
-          { label: "Programados (decenas)", data: programado, backgroundColor: "#C9D3DA", borderRadius: 6 },
-          { label: "Ejecutados (decenas)", data: ejecutado, backgroundColor: "#1A5276", borderRadius: 6 }
+          {
+            label: "% de avance",
+            data: porcentajes,
+            backgroundColor: porcentajes.map(p => p >= 100 ? "#8EC63F" : "#1A5276"),
+            borderRadius: 5,
+            maxBarThickness: 34
+          }
         ]
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: "bottom", labels: { font: { size: 12 } } },
+          legend: { display: false },
           tooltip: {
             callbacks: {
               label: (ctx) => {
-                const pilotesReales = Math.round(ctx.parsed.y * 10);
-                return ctx.dataset.label.replace(" (decenas)", "") + ": " + pilotesReales + " pilotes";
+                const i = ctx.dataIndex;
+                return [
+                  "Avance: " + ctx.parsed.y + "%",
+                  "Ejecutados: " + ejecutadosReales[i] + " / " + programadosReales[i] + " pilotes"
+                ];
               }
             }
           }
         },
         scales: {
+          x: { ticks: { font: { size: 10 } } },
           y: {
             beginAtZero: true,
-            ticks: { precision: 0, stepSize: 1 },
-            title: { display: true, text: "N° de pilotes ÷ 10 (cada unidad = 10 pilotes)", font: { size: 11 } }
+            max: 100,
+            ticks: { stepSize: 10, font: { size: 10 }, callback: (v) => v + "%" }
           }
         }
       }
     });
     return () => { if (chartRef.current) chartRef.current.destroy(); };
-  }, [JSON.stringify(labels), JSON.stringify(programado), JSON.stringify(ejecutado)]);
-  return <canvas ref={ref} height="260"></canvas>;
+  }, [JSON.stringify(labels), JSON.stringify(porcentajes)]);
+  return <canvas ref={ref}></canvas>;
 }
 
 function LineChartCanvas({ labels, data }) {
@@ -1112,7 +1219,7 @@ function LineChartCanvas({ labels, data }) {
           backgroundColor: "rgba(142,198,63,0.15)",
           tension: 0.35,
           fill: true,
-          pointRadius: 3,
+          pointRadius: 2,
           pointBackgroundColor: "#6FA22B"
         }]
       },
@@ -1120,15 +1227,19 @@ function LineChartCanvas({ labels, data }) {
         responsive: true,
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { y: { ticks: { callback: v => v + "%" } } }
+        scales: {
+          x: { ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 } },
+          y: { ticks: { font: { size: 10 }, callback: v => v + "%" } }
+        }
       }
     });
     return () => { if (chartRef.current) chartRef.current.destroy(); };
   }, [JSON.stringify(labels), JSON.stringify(data)]);
-  return <canvas ref={ref} height="260"></canvas>;
+  return <canvas ref={ref}></canvas>;
 }
 
 function Dashboard({ projects, reports, users }) {
+  const [chartTab, setChartTab] = useState("avance");
   const now = new Date();
   const thisMonthReports = reports.filter(r => {
     const d = new Date(r.fecha + "T00:00:00");
@@ -1141,37 +1252,45 @@ function Dashboard({ projects, reports, users }) {
   const expansionProm = reports.length ? round(reports.reduce((s, r) => s + (r.porcentajeExpansion || 0), 0) / reports.length, 2) : 0;
 
   const barLabels = projects.map(p => (p.nombre || "Sin nombre").length > 18 ? (p.nombre || "Sin nombre").slice(0, 16) + "…" : (p.nombre || "Sin nombre"));
-  const barProgramado = projects.map(p => round((p.pilotesProgramados || 0) / 10, 1));
-  const barEjecutado = projects.map(p => round(reports.filter(r => r.proyectoId === p.id).length / 10, 1));
+  const barEjecutadosReales = projects.map(p => reports.filter(r => r.proyectoId === p.id).length);
+  const barProgramadosReales = projects.map(p => p.pilotesProgramados || 0);
+  const barPorcentajes = projects.map((p, i) => p.pilotesProgramados ? Math.round((barEjecutadosReales[i] / p.pilotesProgramados) * 100) : 0);
 
   const sortedByDate = [...reports].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
   const lineLabels = sortedByDate.map(r => fmtFecha(r.fecha));
   const lineData = sortedByDate.map(r => r.porcentajeExpansion || 0);
 
   return (
-    <div className="grid gap-[2rem]">
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1.6rem]">
-        <KPICard label="Pilotes fundidos (mes)" value={thisMonthReports.length} tone="blue" />
-        <KPICard label="Pilotes fundidos (semana)" value={thisWeekReports.length} tone="blue" />
-        <KPICard label="Volumen total de concreto" value={volumenTotal + " m³"} tone="green" />
-        <KPICard label="Expansión promedio global" value={expansionProm + "%"} tone="gray" />
+    <div className="grid gap-[1.4rem] sm:gap-[2rem]">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1rem] sm:gap-[1.6rem]">
+        <KPICard label="Pilotes (mes)" value={thisMonthReports.length} tone="blue" />
+        <KPICard label="Pilotes (semana)" value={thisWeekReports.length} tone="blue" />
+        <KPICard label="Concreto total" value={volumenTotal + " m³"} tone="green" />
+        <KPICard label="Expansión prom." value={expansionProm + "%"} tone="gray" />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-[1.6rem]">
-        <Card className="p-[2rem]">
-          <p className="text-[1.5rem] font-bold text-chp-blue mb-[1.4rem]">Avance de pilotes — ejecutados vs. programados</p>
-          {projects.length ? <BarChartCanvas labels={barLabels} programado={barProgramado} ejecutado={barEjecutado} /> : <EmptyChart />}
-        </Card>
-        <Card className="p-[2rem]">
-          <p className="text-[1.5rem] font-bold text-chp-blue mb-[1.4rem]">Tendencia del porcentaje de expansión</p>
-          {reports.length ? <LineChartCanvas labels={lineLabels} data={lineData} /> : <EmptyChart />}
-        </Card>
-      </div>
+      <Card className="p-[1.4rem] sm:p-[2rem]">
+        <div className="flex items-center justify-between flex-wrap gap-[0.8rem] mb-[1rem]">
+          <p className="text-[1.4rem] sm:text-[1.5rem] font-bold text-chp-blue">
+            {chartTab === "avance" ? "Avance de pilotes por obra" : "Tendencia del % de expansión"}
+          </p>
+          <SegmentToggle
+            value={chartTab}
+            onChange={setChartTab}
+            options={[{ value: "avance", label: "Avance" }, { value: "expansion", label: "Expansión" }]}
+          />
+        </div>
+        <div className="h-[15rem] sm:h-[20rem]">
+          {chartTab === "avance"
+            ? (projects.length ? <BarChartCanvas labels={barLabels} porcentajes={barPorcentajes} ejecutadosReales={barEjecutadosReales} programadosReales={barProgramadosReales} /> : <EmptyChart />)
+            : (reports.length ? <LineChartCanvas labels={lineLabels} data={lineData} /> : <EmptyChart />)}
+        </div>
+      </Card>
     </div>
   );
 }
 function EmptyChart() {
-  return <div className="h-[26rem] flex items-center justify-center text-chp-grayLight text-[1.4rem]">Aún no hay datos suficientes.</div>;
+  return <div className="h-full flex items-center justify-center text-chp-grayLight text-[1.3rem]">Aún no hay datos suficientes.</div>;
 }
 
 /* =========================================================================
@@ -1181,6 +1300,7 @@ function ReportsTable({ reports, projects, users, onDelete }) {
   const [filterProject, setFilterProject] = useState("");
   const [filterEngineer, setFilterEngineer] = useState("");
   const [filterDate, setFilterDate] = useState("");
+  const [viewingReport, setViewingReport] = useState(null);
 
   const engineers = users.filter(u => u.role === "ingeniero");
   const projectName = (id) => (projects.find(p => p.id === id) || {}).nombre || "—";
@@ -1204,6 +1324,7 @@ function ReportsTable({ reports, projects, users, onDelete }) {
       "Diametro (m)": r.diametro,
       "Profundidad (m)": r.profundidad,
       "Tipo concreto": r.tipoConcreto,
+      "Resistencia concreto": r.resistenciaConcreto,
       Mixer: r.mixer,
       "Long. excavacion (m)": r.longExcavacion,
       "Long. concreto (m)": r.longConcreto,
@@ -1262,9 +1383,14 @@ function ReportsTable({ reports, projects, users, onDelete }) {
                 <Td>{r.volReal} m³</Td>
                 <Td><Badge tone={r.porcentajeExpansion > 10 ? "red" : "green"}>{r.porcentajeExpansion}%</Badge></Td>
                 <Td>
-                  <button onClick={() => onDelete(r.id)} className="text-chp-grayLight hover:text-red-600">
-                    <Icon.trash className="w-[1.5rem] h-[1.5rem]" />
-                  </button>
+                  <div className="flex gap-[0.8rem]">
+                    <button onClick={() => setViewingReport(r)} title="Ver detalle completo" className="text-chp-grayLight hover:text-chp-blue p-[0.6rem] -m-[0.6rem]">
+                      <Icon.eye className="w-[1.5rem] h-[1.5rem]" />
+                    </button>
+                    <button onClick={() => onDelete(r.id)} className="text-chp-grayLight hover:text-red-600 p-[0.6rem] -m-[0.6rem]">
+                      <Icon.trash className="w-[1.5rem] h-[1.5rem]" />
+                    </button>
+                  </div>
                 </Td>
               </tr>
             ))}
@@ -1274,6 +1400,9 @@ function ReportsTable({ reports, projects, users, onDelete }) {
           </tbody>
         </table>
       </Card>
+      {viewingReport && (
+        <ReportDetailModal report={viewingReport} projectName={projectName} engineerName={engineerName} onClose={() => setViewingReport(null)} />
+      )}
     </div>
   );
 }
@@ -1287,6 +1416,7 @@ function ActivitiesDashboard({ projects, avances, users, onDelete }) {
   const [filterProject, setFilterProject] = useState("");
   const [filterEngineer, setFilterEngineer] = useState("");
   const [filterDate, setFilterDate] = useState("");
+  const [viewingActivity, setViewingActivity] = useState(null);
 
   const engineers = users.filter(u => u.role === "ingeniero");
   const projectName = (id) => (projects.find(p => p.id === id) || {}).nombre || "—";
@@ -1388,9 +1518,14 @@ function ActivitiesDashboard({ projects, avances, users, onDelete }) {
                   <Td>{engineerName(a.ingenieroId)}</Td>
                   <Td className="max-w-[24rem] truncate">{a.observaciones}</Td>
                   <Td>
-                    <button onClick={() => onDelete(a.id)} className="text-chp-grayLight hover:text-red-600">
-                      <Icon.trash className="w-[1.5rem] h-[1.5rem]" />
-                    </button>
+                    <div className="flex gap-[0.8rem]">
+                      <button onClick={() => setViewingActivity(a)} title="Ver detalle completo" className="text-chp-grayLight hover:text-chp-blue p-[0.6rem] -m-[0.6rem]">
+                        <Icon.eye className="w-[1.5rem] h-[1.5rem]" />
+                      </button>
+                      <button onClick={() => onDelete(a.id)} className="text-chp-grayLight hover:text-red-600 p-[0.6rem] -m-[0.6rem]">
+                        <Icon.trash className="w-[1.5rem] h-[1.5rem]" />
+                      </button>
+                    </div>
                   </Td>
                 </tr>
               ))}
@@ -1401,6 +1536,9 @@ function ActivitiesDashboard({ projects, avances, users, onDelete }) {
           </table>
         </Card>
       </div>
+      {viewingActivity && (
+        <ActivityDetailModal avance={viewingActivity} projectName={projectName} engineerName={engineerName} onClose={() => setViewingActivity(null)} />
+      )}
     </div>
   );
 }
@@ -1553,8 +1691,8 @@ function ProjectsManager({ projects, reports, avances, showToast }) {
                   <p className="text-[1.3rem] text-chp-grayLight">{p.contratante || "Sin contratante"}</p>
                 </div>
                 <div className="flex gap-[0.6rem]">
-                  <button onClick={() => startEdit(p)} className="text-chp-grayLight hover:text-chp-blue"><Icon.edit className="w-[1.6rem] h-[1.6rem]" /></button>
-                  <button onClick={() => remove(p.id)} className="text-chp-grayLight hover:text-red-600"><Icon.trash className="w-[1.6rem] h-[1.6rem]" /></button>
+                  <button onClick={() => startEdit(p)} className="text-chp-grayLight hover:text-chp-blue p-[0.6rem] -m-[0.6rem]"><Icon.edit className="w-[1.6rem] h-[1.6rem]" /></button>
+                  <button onClick={() => remove(p.id)} className="text-chp-grayLight hover:text-red-600 p-[0.6rem] -m-[0.6rem]"><Icon.trash className="w-[1.6rem] h-[1.6rem]" /></button>
                 </div>
               </div>
               <div className="mt-[1.2rem] flex items-center gap-[1rem] flex-wrap">
@@ -1742,9 +1880,9 @@ function UsersManager({ users, projects, currentUser, showToast }) {
                 <p className="text-[1.3rem] text-chp-grayLight">{u.email} · {u.role === "coordinador" ? "Coordinador de Proyectos" : "Ingeniero de Obra"}</p>
               </div>
               <div className="flex gap-[0.6rem]">
-                <button onClick={() => sendReset(u)} title="Enviar restablecimiento de contraseña" className="text-chp-grayLight hover:text-chp-blue"><Icon.lock className="w-[1.6rem] h-[1.6rem]" /></button>
-                <button onClick={() => startEdit(u)} className="text-chp-grayLight hover:text-chp-blue"><Icon.edit className="w-[1.6rem] h-[1.6rem]" /></button>
-                <button onClick={() => remove(u.id)} className="text-chp-grayLight hover:text-red-600"><Icon.trash className="w-[1.6rem] h-[1.6rem]" /></button>
+                <button onClick={() => sendReset(u)} title="Enviar restablecimiento de contraseña" className="text-chp-grayLight hover:text-chp-blue p-[0.6rem] -m-[0.6rem]"><Icon.lock className="w-[1.6rem] h-[1.6rem]" /></button>
+                <button onClick={() => startEdit(u)} className="text-chp-grayLight hover:text-chp-blue p-[0.6rem] -m-[0.6rem]"><Icon.edit className="w-[1.6rem] h-[1.6rem]" /></button>
+                <button onClick={() => remove(u.id)} className="text-chp-grayLight hover:text-red-600 p-[0.6rem] -m-[0.6rem]"><Icon.trash className="w-[1.6rem] h-[1.6rem]" /></button>
               </div>
             </div>
             {u.role === "ingeniero" && (
@@ -1914,7 +2052,7 @@ function App() {
   return (
     <div className="min-h-screen">
       <Header user={currentUser} onLogout={handleLogout} view={view} setView={(v) => { setEditingReport(null); setEditingActivity(null); setView(v); }} />
-      <main className="max-w-[130rem] mx-auto px-[1.6rem] sm:px-[2.4rem] py-[2.4rem]">
+      <main className="max-w-[130rem] mx-auto px-[1.4rem] sm:px-[2.4rem] py-[1.6rem] sm:py-[2.4rem]">
         {!isCoord && view === "nuevo" && (
           <NuevoRegistroView
             user={currentUser}
