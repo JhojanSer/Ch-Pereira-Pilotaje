@@ -1,0 +1,63 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function estaAutenticado() {
+      return request.auth != null;
+    }
+
+    function miPerfil() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function esCoordinador() {
+      return estaAutenticado() && miPerfil().role == 'coordinador';
+    }
+
+    match /usuarios/{userId} {
+      allow read: if estaAutenticado();
+      allow create, update, delete: if esCoordinador();
+    }
+
+    match /proyectos/{projectId} {
+      allow read: if estaAutenticado();
+      allow create, update, delete: if esCoordinador();
+    }
+
+    match /reportes/{reportId} {
+      allow read: if estaAutenticado();
+      allow create: if estaAutenticado() &&
+        (esCoordinador() || request.resource.data.ingenieroId == request.auth.uid);
+      allow update, delete: if estaAutenticado() &&
+        (esCoordinador() || resource.data.ingenieroId == request.auth.uid);
+    }
+
+    match /avances/{avanceId} {
+      allow read: if estaAutenticado();
+      allow create: if estaAutenticado() &&
+        (esCoordinador() || request.resource.data.ingenieroId == request.auth.uid);
+      allow update, delete: if estaAutenticado() &&
+        (esCoordinador() || resource.data.ingenieroId == request.auth.uid);
+    }
+
+    // ============================================================
+    // DOCUMENTOS DE OBRA
+    // ============================================================
+    match /documentosObra/{documentId} {
+
+      // Coordinador: puede consultar todos los documentos.
+      // Ingeniero: solo puede consultar documentos de sus proyectos asignados.
+      allow read: if estaAutenticado()
+        && (
+          miPerfil().role == "coordinador"
+          ||
+          resource.data.projectId in miPerfil().projectIds
+        );
+
+      // Solo el coordinador puede crear, modificar o eliminar
+      // documentos de obra.
+      allow create, update, delete: if esCoordinador();
+    }
+  }
+}
