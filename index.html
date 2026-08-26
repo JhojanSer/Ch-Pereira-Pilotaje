@@ -3,9 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
-<title>CHP Pilotaje — CH Pereira &amp; Cía S.A.S.</title>
-<link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#1A5276">
+<meta name="theme-color" content="#2B6FB3">
+<meta name="description" content="CHP Pilotaje — Gestión y Control de Pilotaje de CH Pereira.">
+
+<title>CHP Pilotaje | CH Pereira</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -21,7 +22,6 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyDRiZh5I0_hrqni3giB4kXoSZnKII2lTUE",
@@ -34,7 +34,6 @@
   firebase.initializeApp(firebaseConfig);
   const fbAuth = firebase.auth();
   const fbDb = firebase.firestore();
-  const fbStorage = firebase.storage();
 
   // Crea un usuario de Auth SIN cerrar la sesión del coordinador que lo está creando,
   // usando una instancia secundaria y temporal de la app de Firebase.
@@ -60,14 +59,14 @@
         fontFamily: { sans: ['Inter', 'sans-serif'] },
         colors: {
           chp: {
-            blue:      '#1A5276',
-            blueDark:  '#123D58',
-            blueLight: '#2E7DA6',
-            gray:      '#34495E',
-            grayLight: '#7A8A9A',
-            green:     '#8EC63F',
-            greenDark: '#6FA22B',
-            bg:        '#F4F7F9'
+            blue:      '#2B6FB3',
+            blueDark:  '#174F82',
+            blueLight: '#3C86C4',
+            gray:      '#4F555A',
+            grayLight: '#7A8085',
+            green:     '#A3CF3A',
+            greenDark: '#7FAE27',
+            bg:        '#F5F7FA'
           }
         }
       }
@@ -88,15 +87,274 @@
   @keyframes popIn { from { opacity:0; transform: scale(0.96);} to {opacity:1; transform: scale(1);} }
   .pop-in { animation: popIn 0.18s ease; }
 
-  .chp-watermark { position: fixed; right: -7rem; bottom: 3rem; width: 34rem; height: 34rem; opacity: .045; color: #1A5276; pointer-events: none; z-index: 0; transform: rotate(-8deg); }
-  .chp-hero { position: relative; overflow: hidden; background: linear-gradient(135deg, rgba(26,82,118,.98), rgba(18,61,88,.98)); }
-  .chp-hero::after { content: ''; position:absolute; inset:auto -4rem -8rem auto; width:28rem; height:28rem; border:3rem solid rgba(142,198,63,.12); border-radius:50%; }
-  .machine-card { transition: transform .22s ease, box-shadow .22s ease; }
-  .machine-card:hover { transform: translateY(-.3rem); box-shadow: 0 1.2rem 3rem rgba(18,61,88,.12); }
-  .doc-card { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
-  .doc-card:hover { transform: translateY(-.2rem); box-shadow: 0 .8rem 2rem rgba(26,82,118,.09); border-color: rgba(46,125,166,.35); }
+  /* =========================================================================
+     IDENTIDAD CORPORATIVA CH PEREIRA — CAPA VISUAL
+     No modifica autenticación, Firestore, Storage ni reglas de seguridad.
+     ========================================================================= */
+  :root {
+    --chp-corporate-blue: #2B6FB3;
+    --chp-corporate-navy: #174F82;
+    --chp-corporate-green: #A3CF3A;
+    --chp-corporate-gray: #4F555A;
+    --chp-corporate-muted: #7A8085;
+    --chp-corporate-bg: #F5F7FA;
+    --chp-line: #E4E9EE;
+  }
+
+  body {
+    background:
+      radial-gradient(circle at 92% 8%, rgba(43,111,179,.07) 0 12rem, transparent 12.1rem),
+      radial-gradient(circle at 8% 88%, rgba(163,207,58,.055) 0 15rem, transparent 15.1rem),
+      var(--chp-corporate-bg);
+    color: var(--chp-corporate-gray);
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: auto -8rem -8rem auto;
+    width: 34rem;
+    height: 34rem;
+    pointer-events: none;
+    opacity: .055;
+    border: 1.2rem solid var(--chp-corporate-blue);
+    border-radius: 50%;
+    transform: rotate(-18deg);
+    z-index: 0;
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Barra corporativa superior */
+  .chp-header {
+    border-bottom: 0.1rem solid var(--chp-line);
+    box-shadow: 0 0.6rem 2.2rem rgba(23,79,130,.055);
+    backdrop-filter: blur(1.2rem);
+  }
+
+  .chp-header::after {
+    content: "";
+    display: block;
+    height: 0.35rem;
+    background: linear-gradient(90deg, var(--chp-corporate-blue) 0 72%, var(--chp-corporate-green) 72% 100%);
+  }
+
+  .chp-header-inner {
+    min-height: 6.8rem;
+  }
+
+  .chp-logo-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .chp-logo-wrap::after {
+    content: "";
+    width: 0.25rem;
+    height: 3rem;
+    margin-left: 1.2rem;
+    background: var(--chp-corporate-green);
+    border-radius: 99rem;
+    opacity: .95;
+  }
+
+  .chp-nav {
+    border: 0.1rem solid rgba(43,111,179,.07);
+    box-shadow: inset 0 0.1rem 0 rgba(255,255,255,.8);
+  }
+
+  .chp-nav-item {
+    position: relative;
+  }
+
+  .chp-nav-item:hover {
+    background: rgba(255,255,255,.72);
+  }
+
+  .chp-nav-active {
+    box-shadow: 0 0.35rem 1.2rem rgba(23,79,130,.10), inset 0 0 0 0.1rem rgba(43,111,179,.08) !important;
+  }
+
+  .chp-nav-active::after {
+    content: "";
+    position: absolute;
+    left: 1.25rem;
+    right: 1.25rem;
+    bottom: 0.3rem;
+    height: 0.2rem;
+    border-radius: 99rem;
+    background: var(--chp-corporate-green);
+  }
+
+  .chp-avatar {
+    box-shadow: 0 0 0 0.3rem rgba(43,111,179,.08);
+    background: linear-gradient(145deg, var(--chp-corporate-blue), var(--chp-corporate-navy)) !important;
+  }
+
+  .chp-logout {
+    box-shadow: 0 0.25rem 0.8rem rgba(23,79,130,.05);
+  }
+
+  /* Área de trabajo: apariencia editorial/corporativa */
+  main {
+    position: relative;
+  }
+
+  main::before {
+    content: "CHP";
+    position: absolute;
+    top: 2rem;
+    right: 1.5rem;
+    font-size: clamp(8rem, 14vw, 17rem);
+    line-height: .8;
+    font-weight: 900;
+    letter-spacing: -.08em;
+    color: var(--chp-corporate-blue);
+    opacity: .025;
+    pointer-events: none;
+    user-select: none;
+    z-index: -1;
+  }
+
+  /* Tarjetas */
+  #root .rounded-\[1\.4rem\].border-gray-100 {
+    border-color: var(--chp-line);
+    box-shadow: 0 0.8rem 2.8rem rgba(23,79,130,.055);
+    transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+  }
+
+  #root .rounded-\[1\.4rem\].border-gray-100:hover {
+    border-color: rgba(43,111,179,.18);
+    box-shadow: 0 1.1rem 3.2rem rgba(23,79,130,.09);
+  }
+
+  /* Botones */
+  #root button.bg-chp-green {
+    background: linear-gradient(135deg, #A3CF3A, #8CB82E) !important;
+    box-shadow: 0 .4rem 1.1rem rgba(140,184,46,.22) !important;
+  }
+
+  #root button.bg-chp-blue {
+    background: linear-gradient(135deg, #2B6FB3, #174F82) !important;
+    box-shadow: 0 .4rem 1.1rem rgba(23,79,130,.18) !important;
+  }
+
+  #root button.bg-chp-green:hover,
+  #root button.bg-chp-blue:hover {
+    filter: brightness(.97);
+    transform: translateY(-.05rem);
+  }
+
+  /* Campos */
+  #root input,
+  #root select,
+  #root textarea {
+    border-color: var(--chp-line);
+    box-shadow: 0 0.1rem 0 rgba(23,79,130,.015);
+  }
+
+  #root input:focus,
+  #root select:focus,
+  #root textarea:focus {
+    border-color: var(--chp-corporate-blue) !important;
+    box-shadow: 0 0 0 .3rem rgba(43,111,179,.11) !important;
+  }
+
+  /* Títulos de sección */
+  #root h1,
+  #root h2,
+  #root h3 {
+    letter-spacing: -.025em;
+  }
+
+  /* Dashboard: protagonismo visual */
+  #root canvas {
+    max-width: 100%;
+  }
+
+  /* Login corporativo */
+  .chp-login-kicker {
+    display: inline-flex;
+    align-items: center;
+    gap: .7rem;
+    margin-bottom: .8rem;
+    padding: .45rem .9rem;
+    border-radius: 99rem;
+    background: rgba(43,111,179,.08);
+    color: var(--chp-corporate-blue);
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: .14em;
+  }
+
+  .chp-login-kicker::before {
+    content: "";
+    width: .55rem;
+    height: .55rem;
+    border-radius: 50%;
+    background: var(--chp-corporate-green);
+  }
+
+  /* Separadores y tablas */
+  #root table thead {
+    background: #F7F9FB;
+  }
+
+  #root table th {
+    color: var(--chp-corporate-navy);
+    font-weight: 800;
+  }
+
+  #root table tbody tr {
+    border-color: var(--chp-line);
+  }
+
+  #root table tbody tr:hover {
+    background: rgba(43,111,179,.025);
+  }
+
+  /* Scrollbar corporativo */
+  ::-webkit-scrollbar-thumb {
+    background: #C4CFD9;
+  }
+
+  @media (max-width: 900px) {
+    .chp-header-inner {
+      align-items: center;
+    }
+    .chp-nav {
+      order: 3;
+      width: 100%;
+      justify-content: flex-start;
+    }
+    .chp-brand {
+      flex: 1;
+      min-width: 0;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .chp-header-inner {
+      padding-top: 1rem;
+      padding-bottom: 1rem;
+    }
+    .chp-logo-wrap img {
+      height: 3.4rem;
+    }
+    .chp-nav-item {
+      padding-left: 1.15rem !important;
+      padding-right: 1.15rem !important;
+    }
+    main::before {
+      font-size: 8rem;
+    }
+  }
+
 </style>
-<script src="./pwa-register.js"></script>
 </head>
 <body class="bg-chp-bg text-chp-gray antialiased">
 <div id="root"></div>
@@ -151,42 +409,6 @@ async function fsDelete(collectionName, id) {
 }
 function fsNewId(collectionName) {
   return fbDb.collection(collectionName).doc().id;
-}
-function storageRef(path) { return fbStorage.ref().child(path); }
-async function uploadDocumentFile(file, projectId, user, onProgress) {
-  const safeName = file.name.replace(/[^a-zA-Z0-9._ -]/g, "_");
-  const docId = fsNewId("documentosObra");
-  const path = `documentos_obra/${projectId}/${docId}/${safeName}`;
-  const ref = storageRef(path);
-  const task = ref.put(file, { contentType: file.type || "application/octet-stream", customMetadata: { projectId, uploadedBy: user.uid } });
-  return await new Promise((resolve, reject) => {
-    task.on("state_changed", snap => {
-      if (onProgress) onProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100));
-    }, reject, async () => {
-      try {
-        const record = { id: docId, projectId, name: file.name, safeName, size: file.size, contentType: file.type || "application/octet-stream", storagePath: path, uploadedBy: user.uid, uploadedByName: `${user.nombre || ""} ${user.apellidos || ""}`.trim(), uploadedAt: new Date().toISOString() };
-        await fsSet("documentosObra", docId, record);
-        resolve(record);
-      } catch (e) { reject(e); }
-    });
-  });
-}
-async function deleteDocumentFile(doc) {
-  if (doc.storagePath) { try { await storageRef(doc.storagePath).delete(); } catch (e) { console.warn("No se pudo eliminar el archivo del Storage", e); } }
-  await fsDelete("documentosObra", doc.id);
-}
-async function openDocumentFile(doc) {
-  if (!doc.storagePath) throw new Error("El documento no tiene ruta de almacenamiento.");
-  const blob = await storageRef(doc.storagePath).getBlob();
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = doc.name;
-  a.target = "_blank";
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 /* =========================================================================
@@ -433,10 +655,7 @@ const Icon = {
   alert: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>,
   clipboard: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="M9 12l2 2 4-4"/></svg>,
   minus: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M5 12h14"/></svg>,
-  eye: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>,
-  file: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="16" y2="17"/></svg>,
-  upload: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V4"/><polyline points="8 8 12 4 16 8"/><path d="M4 20h16"/><path d="M4 16v4"/><path d="M20 16v4"/></svg>,
-  machine: (p) => <svg {...p} viewBox="0 0 120 120" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><path d="M22 91h76"/><path d="M32 91V55h20l12-13h20v49"/><path d="M64 42V16h12l18 28"/><path d="M76 16h10"/><path d="M40 55h35"/><path d="M47 66h12"/><path d="M30 91a10 10 0 0 0 20 0"/><path d="M76 91a10 10 0 0 0 20 0"/><path d="M91 44v47"/><path d="M101 91V53"/><path d="M101 53h-10"/><circle cx="41" cy="91" r="3"/><circle cx="86" cy="91" r="3"/></svg>
+  eye: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
 };
 
 /* =========================================================================
@@ -490,8 +709,8 @@ function LoginScreen() {
           <img src={LOGO_SRC} alt="Ch Pereira Construcciones" className="h-[6rem] object-contain" />
         </div>
         <Card className="p-[3.2rem]">
-          <h1 className="text-[2.2rem] font-extrabold text-chp-blue mb-[0.4rem]">Acceso al sistema</h1>
-          <p className="text-[1.4rem] text-chp-grayLight mb-[2.6rem]">Reportes diarios de excavación y fundida de pilotes</p>
+          <div className="chp-login-kicker">CHP PILOTAJE</div><h1 className="text-[2.2rem] font-extrabold text-chp-blue mb-[0.4rem]">Gestión y Control de Pilotaje</h1>
+          <p className="text-[1.4rem] text-chp-grayLight mb-[2.6rem]">Plataforma corporativa para el seguimiento de obras, pilotes y producción.</p>
 
           <form onSubmit={handleSubmit}>
             <Field label="Correo electrónico" required>
@@ -540,30 +759,34 @@ function Header({ user, onLogout, view, setView }) {
         { key: "reportes", label: "Pilotes", icon: Icon.list },
         { key: "actividades", label: "Actividades", icon: Icon.clipboard },
         { key: "proyectos", label: "Proyectos", icon: Icon.building },
-        { key: "usuarios", label: "Usuarios", icon: Icon.users },
-        { key: "documentos", label: "Documentos de Obra", icon: Icon.file }
+        { key: "usuarios", label: "Usuarios", icon: Icon.users }
       ]
     : [
         { key: "nuevo", label: "Nuevo registro", icon: Icon.plus },
-        { key: "mis-reportes", label: "Mis registros", icon: Icon.list },
-        { key: "documentos", label: "Documentos de Obra", icon: Icon.file }
+        { key: "mis-reportes", label: "Mis registros", icon: Icon.list }
       ];
 
   return (
-    <header className="bg-white border-b border-gray-100 sticky top-0 z-30">
-      <div className="max-w-[130rem] mx-auto px-[1.6rem] sm:px-[2.4rem] py-[1.2rem] flex items-center justify-between gap-[1.6rem] flex-wrap">
-        <div className="flex items-center gap-[1.4rem]">
-          <img src={LOGO_SRC} alt="Ch Pereira" className="h-[3.4rem] object-contain" />
+    <header className="chp-header bg-white sticky top-0 z-30">
+      <div className="chp-header-inner max-w-[130rem] mx-auto px-[1.6rem] sm:px-[2.4rem] py-[1.2rem] flex items-center justify-between gap-[1.6rem] flex-wrap">
+        <div className="chp-brand flex items-center gap-[1.4rem]">
+          <div className="chp-logo-wrap">
+            <img src={LOGO_SRC} alt="Ch Pereira Construcciones" className="h-[3.8rem] sm:h-[4.2rem] object-contain" />
+          </div>
+          <div className="chp-app-title hidden md:block">
+            <div className="text-[1.35rem] font-extrabold tracking-[0.12em] text-chp-blue uppercase">CHP PILOTAJE</div>
+            <div className="text-[1.05rem] font-medium tracking-[0.04em] text-chp-grayLight">Gestión y Control de Pilotaje</div>
+          </div>
         </div>
 
-        <nav className="flex-1 flex justify-center">
-          <div className="flex gap-[0.4rem] bg-chp-bg rounded-[1rem] p-[0.4rem] overflow-x-auto max-w-full">
+        <nav className="flex-1 flex justify-center min-w-0">
+          <div className="chp-nav flex gap-[0.35rem] bg-chp-bg rounded-[1.2rem] p-[0.45rem] overflow-x-auto max-w-full">
             {tabs.map(t => (
               <button
                 key={t.key}
                 onClick={() => setView(t.key)}
-                className={"flex items-center gap-[0.7rem] whitespace-nowrap px-[1.6rem] py-[0.9rem] rounded-[0.7rem] text-[1.35rem] font-semibold transition-all " +
-                  (view === t.key ? "bg-white text-chp-blue shadow-sm" : "text-chp-grayLight hover:text-chp-blue")}
+                className={"chp-nav-item flex items-center gap-[0.7rem] whitespace-nowrap px-[1.45rem] py-[0.9rem] rounded-[0.85rem] text-[1.3rem] font-semibold transition-all " +
+                  (view === t.key ? "chp-nav-active bg-white text-chp-blue shadow-sm" : "text-chp-grayLight hover:text-chp-blue")}
               >
                 <t.icon className="w-[1.6rem] h-[1.6rem]" /> {t.label}
               </button>
@@ -571,15 +794,15 @@ function Header({ user, onLogout, view, setView }) {
           </div>
         </nav>
 
-        <div className="flex items-center gap-[1.2rem]">
+        <div className="flex items-center gap-[1.1rem]">
           <div className="text-right hidden sm:block">
-            <div className="text-[1.35rem] font-semibold leading-tight">{user.nombre} {user.apellidos}</div>
-            <div className="text-[1.15rem] text-chp-grayLight leading-tight">{user.role === "coordinador" ? "Coordinador de Proyectos" : "Ingeniero de Obra"}</div>
+            <div className="text-[1.3rem] font-bold leading-tight text-chp-gray">{user.nombre} {user.apellidos}</div>
+            <div className="text-[1.08rem] text-chp-grayLight leading-tight">{user.role === "coordinador" ? "Coordinador de Proyectos" : "Ingeniero de Obra"}</div>
           </div>
-          <div className="w-[3.8rem] h-[3.8rem] rounded-full bg-chp-blue text-white flex items-center justify-center font-bold text-[1.4rem] shrink-0">
+          <div className="chp-avatar w-[4rem] h-[4rem] rounded-full bg-chp-blue text-white flex items-center justify-center font-bold text-[1.35rem] shrink-0">
             {(user.nombre || "?").charAt(0)}{(user.apellidos || "").charAt(0)}
           </div>
-          <button onClick={onLogout} title="Cerrar sesión" className="w-[3.8rem] h-[3.8rem] rounded-[0.8rem] border border-gray-200 flex items-center justify-center text-chp-grayLight hover:text-red-600 hover:border-red-200 transition-all">
+          <button onClick={onLogout} title="Cerrar sesión" className="chp-logout w-[4rem] h-[4rem] rounded-[0.9rem] border border-gray-200 bg-white flex items-center justify-center text-chp-grayLight hover:text-red-600 hover:border-red-200 transition-all">
             <Icon.logout className="w-[1.8rem] h-[1.8rem]" />
           </button>
         </div>
@@ -1292,29 +1515,6 @@ function LineChartCanvas({ labels, data }) {
   return <canvas ref={ref}></canvas>;
 }
 
-function MachineShowcase() {
-  const [active, setActive] = useState("pilotaje");
-  const cards = [
-    { key: "pilotaje", title: "Pilotaje", text: "Equipos Kelly y perforación profunda", icon: Icon.machine },
-    { key: "excavacion", title: "Excavación", text: "Control de profundidad y perforación", icon: Icon.building },
-    { key: "concreto", title: "Concreto", text: "Tremie y control de volumen", icon: Icon.clipboard }
-  ];
-  const current = cards.find(c => c.key === active) || cards[0];
-  return (
-    <div className="machine-card chp-hero rounded-[1.5rem] p-[1.5rem] sm:p-[1.8rem] text-white shadow-sm">
-      <div className="flex items-center gap-[1.5rem]">
-        <div className="w-[6.2rem] h-[6.2rem] sm:w-[7rem] sm:h-[7rem] rounded-[1.2rem] bg-white/10 flex items-center justify-center shrink-0">
-          <current.icon className="w-[4.3rem] h-[4.3rem]" />
-        </div>
-        <div className="min-w-0 flex-1"><p className="text-[1rem] uppercase tracking-widest opacity-75 font-bold">CHP Pilotaje · Operación</p><p className="text-[1.8rem] sm:text-[2rem] font-extrabold mt-[.25rem]">{current.title}</p><p className="text-[1.2rem] opacity-85 mt-[.2rem]">{current.text}</p></div>
-      </div>
-      <div className="flex gap-[.6rem] mt-[1.2rem] overflow-x-auto">
-        {cards.map(c => <button key={c.key} onClick={() => setActive(c.key)} className={"whitespace-nowrap rounded-full px-[1rem] py-[.65rem] text-[1.1rem] font-semibold border transition-all " + (active === c.key ? "bg-white text-chp-blue border-white" : "bg-white/5 text-white border-white/20 hover:bg-white/10")}>{c.title}</button>)}
-      </div>
-    </div>
-  );
-}
-
 function Dashboard({ projects, reports, users }) {
   const [chartTab, setChartTab] = useState("avance");
   const now = new Date();
@@ -1339,7 +1539,6 @@ function Dashboard({ projects, reports, users }) {
 
   return (
     <div className="grid gap-[1.4rem] sm:gap-[2rem]">
-      <MachineShowcase />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1rem] sm:gap-[1.6rem]">
         <KPICard label="Pilotes (mes)" value={thisMonthReports.length} tone="blue" />
         <KPICard label="Pilotes (semana)" value={thisWeekReports.length} tone="blue" />
@@ -2029,108 +2228,6 @@ function ProfileErrorScreen({ email, message, onLogout }) {
   );
 }
 
-
-/* =========================================================================
-   DOCUMENTOS DE OBRA — Storage + Firestore
-   El coordinador carga/elimina. Los ingenieros solo consultan/descargan
-   los documentos de los proyectos que tienen asignados.
-========================================================================= */
-const DOCUMENT_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv";
-function formatBytes(bytes) {
-  if (!bytes) return "0 KB";
-  const units = ["B", "KB", "MB", "GB"];
-  const i = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${round(bytes / Math.pow(1024, i), i ? 1 : 0)} ${units[i]}`;
-}
-function fileKind(name, type) {
-  const ext = (name || "").split(".").pop().toLowerCase();
-  if (type === "application/pdf" || ext === "pdf") return "PDF";
-  if (["jpg","jpeg","png","webp"].includes(ext)) return "IMAGEN";
-  if (["doc","docx"].includes(ext)) return "WORD";
-  if (["xls","xlsx","csv"].includes(ext)) return "EXCEL";
-  if (["ppt","pptx"].includes(ext)) return "PPT";
-  if (ext === "txt") return "TXT";
-  return ext.toUpperCase() || "ARCHIVO";
-}
-function DocumentsView({ user, projects, documents, onUpload, onDelete, showToast }) {
-  const isCoord = user.role === "coordinador";
-  const visibleProjects = isCoord ? projects : projects.filter(p => (user.projectIds || []).includes(p.id));
-  const [selectedProjectId, setSelectedProjectId] = useState(visibleProjects[0]?.id || "");
-  const [uploading, setUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const inputRef = useRef(null);
-  const [filter, setFilter] = useState("");
-
-  useEffect(() => {
-    if (!visibleProjects.some(p => p.id === selectedProjectId)) setSelectedProjectId(visibleProjects[0]?.id || "");
-  }, [projects, user.projectIds, selectedProjectId]);
-
-  const selectedProject = visibleProjects.find(p => p.id === selectedProjectId);
-  const projectDocs = documents
-    .filter(d => d.projectId === selectedProjectId)
-    .filter(d => !filter || d.name.toLowerCase().includes(filter.toLowerCase()));
-
-  async function handleFiles(e) {
-    const files = Array.from(e.target.files || []);
-    e.target.value = "";
-    if (!files.length || !selectedProjectId || !isCoord) return;
-    const tooLarge = files.find(f => f.size > 25 * 1024 * 1024);
-    if (tooLarge) { showToast(`El archivo ${tooLarge.name} supera el límite de 25 MB.`); return; }
-    setUploading(true); setProgress(0);
-    try {
-      for (let i = 0; i < files.length; i++) {
-        setProgress(0);
-        await onUpload(files[i], selectedProjectId, pct => setProgress(Math.round((i * 100 + pct) / files.length)));
-      }
-      showToast(files.length === 1 ? "Documento cargado correctamente." : `${files.length} documentos cargados correctamente.`);
-    } catch (err) {
-      console.error(err);
-      showToast("No se pudo cargar uno de los documentos. Revisa Storage y las reglas de seguridad.");
-    } finally { setUploading(false); setProgress(0); }
-  }
-
-  return (
-    <div className="fade-slide relative z-[1]">
-      <div className="chp-hero rounded-[1.6rem] p-[2rem] sm:p-[2.6rem] mb-[1.8rem] text-white shadow-sm">
-        <div className="flex items-center justify-between gap-[1.5rem]">
-          <div>
-            <div className="flex items-center gap-[.8rem] text-[1.1rem] uppercase tracking-widest opacity-80 font-bold mb-[.6rem]"><Icon.building className="w-[1.5rem] h-[1.5rem]"/> Gestión documental de obra</div>
-            <h1 className="text-[2.2rem] sm:text-[2.8rem] font-extrabold">Documentos de Obra</h1>
-            <p className="text-[1.3rem] sm:text-[1.4rem] opacity-90 mt-[.6rem] max-w-[70rem]">Procedimientos, contratos, SST, permisos de trabajo, ATS y demás documentos asociados a cada proyecto.</p>
-          </div>
-          <div className="hidden sm:block opacity-80 machine-card"><Icon.machine className="w-[11rem] h-[11rem]"/></div>
-        </div>
-      </div>
-
-      {visibleProjects.length === 0 ? (
-        <Card><div className="py-[3rem] text-center text-chp-grayLight"><Icon.file className="w-[4rem] h-[4rem] mx-auto mb-[1rem]"/><p>No tienes proyectos asignados para consultar documentos.</p></div></Card>
-      ) : (
-        <>
-          <Card className="mb-[1.6rem]">
-            <div className="flex flex-col sm:flex-row sm:items-end gap-[1.2rem]">
-              <div className="flex-1"><Field label="Obra / Proyecto"><SelectInput value={selectedProjectId} onChange={e => setSelectedProjectId(e.target.value)}>{visibleProjects.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}</SelectInput></Field></div>
-              <div className="flex-1"><Field label="Buscar documento"><TextInput value={filter} onChange={e => setFilter(e.target.value)} placeholder="Ej. procedimiento, ATS, contrato..." /></Field></div>
-              {isCoord && <div className="sm:pb-[1.6rem]"><Button variant="secondary" onClick={() => inputRef.current?.click()} disabled={uploading}><Icon.upload className="w-[1.7rem] h-[1.7rem]"/>{uploading ? `Cargando ${progress}%` : "Adjuntar documentos"}</Button><input ref={inputRef} type="file" multiple accept={DOCUMENT_ACCEPT} className="hidden" onChange={handleFiles}/></div>}
-            </div>
-            {isCoord && <p className="text-[1.15rem] text-chp-grayLight -mt-[.4rem]">Formatos: PDF, JPG/PNG, TXT, Word, Excel, PowerPoint y CSV. Máximo 25 MB por archivo.</p>}
-          </Card>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[1.2rem]">
-            {projectDocs.map(doc => (
-              <div key={doc.id} className="doc-card bg-white border border-gray-100 rounded-[1.2rem] p-[1.5rem] flex flex-col gap-[1rem]">
-                <div className="flex items-start justify-between gap-[1rem]"><div className="w-[4.2rem] h-[4.2rem] rounded-[1rem] bg-chp-bg text-chp-blue flex items-center justify-center shrink-0"><Icon.file className="w-[2.1rem] h-[2.1rem]"/></div><span className="text-[1rem] font-bold px-[.7rem] py-[.35rem] rounded-full bg-chp-bg text-chp-blue">{fileKind(doc.name, doc.contentType)}</span></div>
-                <div className="min-w-0"><h3 className="font-bold text-[1.4rem] break-words">{doc.name}</h3><p className="text-[1.1rem] text-chp-grayLight mt-[.4rem]">{formatBytes(doc.size)} · {fmtFechaHora(doc.uploadedAt)}</p></div>
-                <div className="mt-auto flex gap-[.7rem]"><button onClick={async () => { try { await openDocumentFile(doc); } catch(e) { console.error(e); showToast("No se pudo abrir/descargar el archivo. Si es la primera configuración, revisaremos CORS de Storage."); } }} className="flex-1 inline-flex items-center justify-center gap-[.6rem] rounded-[.8rem] bg-chp-blue text-white px-[1rem] py-[.9rem] text-[1.2rem] font-semibold"><Icon.download className="w-[1.6rem] h-[1.6rem]"/> Ver / descargar</button>{isCoord && <button onClick={async () => { if (!confirm(`¿Eliminar ${doc.name}?`)) return; try { await onDelete(doc); showToast("Documento eliminado."); } catch(e) { console.error(e); showToast("No se pudo eliminar el documento."); } }} className="w-[4.2rem] rounded-[.8rem] border border-red-100 text-red-500 flex items-center justify-center" title="Eliminar"><Icon.trash className="w-[1.7rem] h-[1.7rem]"/></button>}</div>
-              </div>
-            ))}
-          </div>
-          {projectDocs.length === 0 && <Card className="mt-[1.2rem]"><div className="py-[2.5rem] text-center text-chp-grayLight"><Icon.file className="w-[3.4rem] h-[3.4rem] mx-auto mb-[.8rem]"/><p>No hay documentos para esta obra{filter ? " que coincidan con la búsqueda" : " todavía"}.</p>{isCoord && <p className="text-[1.2rem] mt-[.5rem]">Usa “Adjuntar documentos” para cargar el primer archivo.</p>}</div></Card>}
-        </>
-      )}
-    </div>
-  );
-}
-
 function App() {
   const [authReady, setAuthReady] = useState(false);
   const [firebaseUser, setFirebaseUser] = useState(null);
@@ -2142,7 +2239,6 @@ function App() {
   const [projects, setProjects] = useState([]);
   const [reports, setReports] = useState([]);
   const [avances, setAvances] = useState([]);
-  const [documents, setDocuments] = useState([]);
 
   const [view, setView] = useState(null);
   const [editingReport, setEditingReport] = useState(null);
@@ -2189,8 +2285,7 @@ function App() {
     const unsubProjects = fsSubscribe("proyectos", setProjects);
     const unsubReports = fsSubscribe("reportes", setReports);
     const unsubAvances = fsSubscribe("avances", setAvances);
-    const unsubDocuments = fsSubscribe("documentosObra", setDocuments);
-    return () => { unsubUsers(); unsubProjects(); unsubReports(); unsubAvances(); unsubDocuments(); };
+    return () => { unsubUsers(); unsubProjects(); unsubReports(); unsubAvances(); };
   }, [firebaseUser]);
 
   const currentUser = profile ? { id: firebaseUser.uid, uid: firebaseUser.uid, email: firebaseUser.email, ...profile } : null;
@@ -2222,14 +2317,6 @@ function App() {
     if (!confirm("¿Eliminar este registro de actividad de forma permanente?")) return;
     await fsDelete("avances", id);
   }
-  async function saveDocumentFile(file, projectId, onProgress) {
-    if (currentUser.role !== "coordinador") throw new Error("Solo el coordinador puede cargar documentos.");
-    return uploadDocumentFile(file, projectId, currentUser, onProgress);
-  }
-  async function removeDocumentFile(doc) {
-    if (currentUser.role !== "coordinador") throw new Error("Solo el coordinador puede eliminar documentos.");
-    return deleteDocumentFile(doc);
-  }
 
   if (!authReady) return <LoadingScreen label="Cargando..." />;
   if (!firebaseUser) return <LoginScreen />;
@@ -2240,8 +2327,7 @@ function App() {
   const isCoord = currentUser.role === "coordinador";
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden">
-      <div className="chp-watermark"><Icon.machine className="w-full h-full" /></div>
+    <div className="min-h-screen">
       <Header user={currentUser} onLogout={handleLogout} view={view} setView={(v) => { setEditingReport(null); setEditingActivity(null); setView(v); }} />
       <main className="max-w-[130rem] mx-auto px-[1.4rem] sm:px-[2.4rem] py-[1.6rem] sm:py-[2.4rem]">
         {!isCoord && view === "nuevo" && (
@@ -2275,7 +2361,6 @@ function App() {
         {isCoord && view === "actividades" && <ActivitiesDashboard projects={projects} avances={avances} users={users} onDelete={deleteActivityLog} />}
         {isCoord && view === "proyectos" && <ProjectsManager projects={projects} reports={reports} avances={avances} showToast={showToast} />}
         {isCoord && view === "usuarios" && <UsersManager users={users} projects={projects} currentUser={currentUser} showToast={showToast} />}
-        {view === "documentos" && <DocumentsView user={currentUser} projects={projects} documents={documents} onUpload={saveDocumentFile} onDelete={removeDocumentFile} showToast={showToast} />}
       </main>
       <Toast message={toast} onClose={() => setToast("")} />
     </div>
