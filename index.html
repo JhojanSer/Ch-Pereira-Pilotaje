@@ -250,6 +250,15 @@ function porcentajeExpansion(volReal, volTeorico) {
   if (!volTeorico) return 0;
   return ((volReal - volTeorico) / volTeorico) * 100;
 }
+/* Roles con acceso total (mismo nivel que "coordinador"): agregar aquí
+   cualquier nuevo rol que deba tener acceso administrativo completo. */
+const ROLES_ADMIN = ["coordinador", "director"];
+function esRolAdmin(role) { return ROLES_ADMIN.includes(role); }
+function etiquetaRol(role) {
+  if (role === "coordinador") return "Coordinador de Proyectos";
+  if (role === "director") return "Director de Proyectos";
+  return "Ingeniero de Obra";
+}
 function formatearISOLocal(date) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
@@ -616,7 +625,7 @@ function LoginScreen() {
    ENCABEZADO
 ========================================================================= */
 function Header({ user, onLogout, view, setView }) {
-  const isCoord = user.role === "coordinador";
+  const isCoord = esRolAdmin(user.role);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const tabs = isCoord
     ? [
@@ -675,7 +684,7 @@ function Header({ user, onLogout, view, setView }) {
         <div className="hidden md:flex items-center gap-[1.2rem]">
           <div className="text-right hidden sm:block">
             <div className="text-[1.35rem] font-semibold leading-tight">{user.nombre} {user.apellidos}</div>
-            <div className="text-[1.15rem] text-chp-grayLight leading-tight">{user.role === "coordinador" ? "Coordinador de Proyectos" : "Ingeniero de Obra"}</div>
+            <div className="text-[1.15rem] text-chp-grayLight leading-tight">{etiquetaRol(user.role)}</div>
           </div>
           <div className="w-[3.8rem] h-[3.8rem] rounded-full bg-chp-blue text-white flex items-center justify-center font-bold text-[1.4rem] shrink-0">
             {(user.nombre || "?").charAt(0)}{(user.apellidos || "").charAt(0)}
@@ -695,7 +704,7 @@ function Header({ user, onLogout, view, setView }) {
             </div>
             <div className="min-w-0">
               <div className="text-[1.3rem] font-semibold leading-tight truncate">{user.nombre} {user.apellidos}</div>
-              <div className="text-[1.1rem] text-chp-grayLight leading-tight">{user.role === "coordinador" ? "Coordinador de Proyectos" : "Ingeniero de Obra"}</div>
+              <div className="text-[1.1rem] text-chp-grayLight leading-tight">{etiquetaRol(user.role)}</div>
             </div>
           </div>
           <div className="p-[0.8rem] flex flex-col gap-[0.3rem]">
@@ -870,7 +879,7 @@ function ReportForm({ user, projects, reports, onSave, editing, onDoneEditing, s
     setStep(0);
   }
 
-  const myProjects = projects.filter(p => user.role === "coordinador" || (user.projectIds || []).includes(p.id));
+  const myProjects = projects.filter(p => esRolAdmin(user.role) || (user.projectIds || []).includes(p.id));
   const stepKey = STEPS[step].key;
 
   return (
@@ -2165,6 +2174,7 @@ function UsersManager({ users, projects, currentUser, showToast }) {
               <SelectInput value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}>
                 <option value="ingeniero">Ingeniero de Obra</option>
                 <option value="coordinador">Coordinador de Proyectos</option>
+                <option value="director">Director de Proyectos</option>
               </SelectInput>
             </Field>
           </div>
@@ -2203,7 +2213,7 @@ function UsersManager({ users, projects, currentUser, showToast }) {
             <div className="flex justify-between items-start">
               <div>
                 <p className="font-bold text-[1.6rem]">{u.nombre} {u.apellidos}</p>
-                <p className="text-[1.3rem] text-chp-grayLight">{u.email} · {u.role === "coordinador" ? "Coordinador de Proyectos" : "Ingeniero de Obra"}</p>
+                <p className="text-[1.3rem] text-chp-grayLight">{u.email} · {etiquetaRol(u.role)}</p>
               </div>
               <div className="flex gap-[0.6rem]">
                 <button onClick={() => sendReset(u)} title="Enviar restablecimiento de contraseña" className="text-chp-grayLight hover:text-chp-blue p-[0.6rem] -m-[0.6rem]"><Icon.lock className="w-[1.6rem] h-[1.6rem]" /></button>
@@ -2313,7 +2323,7 @@ function fileKind(name, type) {
   return ext.toUpperCase() || "ARCHIVO";
 }
 function DocumentsView({ user, projects, documents, onUpload, onDelete, showToast }) {
-  const isCoord = user.role === "coordinador";
+  const isCoord = esRolAdmin(user.role);
   const visibleProjects = isCoord ? projects : projects.filter(p => (user.projectIds || []).includes(p.id));
   const [selectedProjectId, setSelectedProjectId] = useState(visibleProjects[0]?.id || "");
   const [uploading, setUploading] = useState(false);
@@ -2522,7 +2532,7 @@ function App() {
 
   useEffect(() => {
     if (currentUser && !view) {
-      setView(currentUser.role === "coordinador" ? "dashboard" : "nuevo");
+      setView(esRolAdmin(currentUser.role) ? "dashboard" : "nuevo");
     }
   }, [currentUser]);
 
@@ -2548,11 +2558,11 @@ function App() {
     await fsDelete("avances", id);
   }
   async function saveDocumentFile(file, projectId, onProgress, categoria) {
-    if (currentUser.role !== "coordinador") throw new Error("Solo el coordinador puede cargar documentos.");
+    if (!esRolAdmin(currentUser.role)) throw new Error("Solo el coordinador o director puede cargar documentos.");
     return uploadDocumentFile(file, projectId, currentUser, onProgress, categoria);
   }
   async function removeDocumentFile(doc) {
-    if (currentUser.role !== "coordinador") throw new Error("Solo el coordinador puede eliminar documentos.");
+    if (!esRolAdmin(currentUser.role)) throw new Error("Solo el coordinador o director puede eliminar documentos.");
     return deleteDocumentFile(doc);
   }
 
@@ -2562,7 +2572,7 @@ function App() {
   if (profileError) return <ProfileErrorScreen email={firebaseUser.email} message={profileError} onLogout={handleLogout} />;
   if (!profile) return <NoProfileScreen email={firebaseUser.email} onLogout={handleLogout} />;
 
-  const isCoord = currentUser.role === "coordinador";
+  const isCoord = esRolAdmin(currentUser.role);
 
   return (
     <div className="min-h-screen relative overflow-x-hidden w-full">

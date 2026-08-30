@@ -11,8 +11,10 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
     }
 
+    // "coordinador" y "director" tienen exactamente el mismo nivel de acceso.
+    // Si en el futuro agregas otro rol con acceso total, súmalo a esta lista.
     function esCoordinador() {
-      return estaAutenticado() && miPerfil().role == 'coordinador';
+      return estaAutenticado() && miPerfil().role in ['coordinador', 'director'];
     }
 
     match /usuarios/{userId} {
@@ -46,16 +48,16 @@ service cloud.firestore {
     // ============================================================
     match /documentosObra/{documentId} {
 
-      // Coordinador: puede consultar todos los documentos.
+      // Coordinador/Director: puede consultar todos los documentos.
       // Ingeniero: solo puede consultar documentos de sus proyectos asignados.
       allow read: if estaAutenticado()
         && (
-          miPerfil().role == "coordinador"
+          esCoordinador()
           ||
           resource.data.projectId in miPerfil().projectIds
         );
 
-      // Solo el coordinador puede crear, modificar o eliminar
+      // Solo coordinador/director pueden crear, modificar o eliminar
       // documentos de obra.
       allow create, update, delete: if esCoordinador();
     }
