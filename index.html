@@ -1588,7 +1588,8 @@ function EmptyChart() {
 function ReportsTable({ reports, projects, users, onDelete }) {
   const [filterProject, setFilterProject] = useState("");
   const [filterEngineer, setFilterEngineer] = useState("");
-  const [filterDate, setFilterDate] = useState("");
+  const [filterDateFrom, setFilterDateFrom] = useState("");
+  const [filterDateTo, setFilterDateTo] = useState("");
   const [viewingReport, setViewingReport] = useState(null);
 
   const engineers = users.filter(u => u.role === "ingeniero");
@@ -1598,9 +1599,23 @@ function ReportsTable({ reports, projects, users, onDelete }) {
   const filtered = reports.filter(r => {
     if (filterProject && r.proyectoId !== filterProject) return false;
     if (filterEngineer && r.ingenieroId !== filterEngineer) return false;
-    if (filterDate && r.fecha !== filterDate) return false;
+    if (filterDateFrom && r.fecha < filterDateFrom) return false;
+    if (filterDateTo && r.fecha > filterDateTo) return false;
     return true;
   }).sort((a, b) => b.createdAt - a.createdAt);
+
+  function setRangoRapido(dias) {
+    const hasta = new Date();
+    const desde = new Date();
+    if (dias === "mes") {
+      desde.setDate(1);
+    } else {
+      desde.setDate(hasta.getDate() - (dias - 1));
+    }
+    setFilterDateFrom(formatearISOLocal(desde));
+    setFilterDateTo(formatearISOLocal(hasta));
+  }
+  function limpiarFechas() { setFilterDateFrom(""); setFilterDateTo(""); }
 
   function exportCSV() {
     const rows = filtered.map(r => ({
@@ -1631,23 +1646,37 @@ function ReportsTable({ reports, projects, users, onDelete }) {
 
   return (
     <div>
-      <div className="flex flex-wrap items-end gap-[1.2rem] mb-[1.8rem]">
+      <div className="flex flex-wrap items-end gap-[1.2rem] mb-[1rem]">
         <Field label="Proyecto">
-          <SelectInput value={filterProject} onChange={e => setFilterProject(e.target.value)} className="min-w-[20rem]">
+          <SelectInput value={filterProject} onChange={e => setFilterProject(e.target.value)} className="min-w-[18rem]">
             <option value="">Todos</option>
             {projects.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
           </SelectInput>
         </Field>
         <Field label="Ingeniero">
-          <SelectInput value={filterEngineer} onChange={e => setFilterEngineer(e.target.value)} className="min-w-[18rem]">
+          <SelectInput value={filterEngineer} onChange={e => setFilterEngineer(e.target.value)} className="min-w-[16rem]">
             <option value="">Todos</option>
             {engineers.map(u => <option key={u.id} value={u.id}>{u.nombre} {u.apellidos}</option>)}
           </SelectInput>
         </Field>
-        <Field label="Fecha">
-          <TextInput type="date" value={filterDate} onChange={e => setFilterDate(e.target.value)} />
+        <Field label="Desde">
+          <TextInput type="date" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} max={filterDateTo || undefined} />
+        </Field>
+        <Field label="Hasta">
+          <TextInput type="date" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} min={filterDateFrom || undefined} />
         </Field>
         <Button variant="secondary" onClick={exportCSV} className="mb-[1.6rem]"><Icon.download className="w-[1.5rem] h-[1.5rem]" /> Exportar CSV</Button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-[0.7rem] mb-[1.8rem]">
+        <span className="text-[1.15rem] text-chp-grayLight font-semibold uppercase tracking-wide mr-[.3rem]">Rango rápido:</span>
+        <button onClick={() => setRangoRapido(7)} className="text-[1.2rem] font-semibold px-[1.1rem] py-[0.5rem] rounded-full border border-gray-200 text-chp-grayLight hover:border-chp-blue hover:text-chp-blue transition-all">Últimos 7 días</button>
+        <button onClick={() => setRangoRapido(15)} className="text-[1.2rem] font-semibold px-[1.1rem] py-[0.5rem] rounded-full border border-gray-200 text-chp-grayLight hover:border-chp-blue hover:text-chp-blue transition-all">Últimos 15 días</button>
+        <button onClick={() => setRangoRapido(30)} className="text-[1.2rem] font-semibold px-[1.1rem] py-[0.5rem] rounded-full border border-gray-200 text-chp-grayLight hover:border-chp-blue hover:text-chp-blue transition-all">Últimos 30 días</button>
+        <button onClick={() => setRangoRapido("mes")} className="text-[1.2rem] font-semibold px-[1.1rem] py-[0.5rem] rounded-full border border-gray-200 text-chp-grayLight hover:border-chp-blue hover:text-chp-blue transition-all">Este mes</button>
+        {(filterDateFrom || filterDateTo) && (
+          <button onClick={limpiarFechas} className="text-[1.2rem] font-semibold px-[1.1rem] py-[0.5rem] rounded-full text-red-600 hover:bg-red-50 transition-all">Quitar rango</button>
+        )}
       </div>
 
       <Card className="overflow-x-auto">
@@ -2322,11 +2351,70 @@ function fileKind(name, type) {
   if (ext === "txt") return "TXT";
   return ext.toUpperCase() || "ARCHIVO";
 }
+
+/* =========================================================================
+   COMPRESIÓN AUTOMÁTICA DE IMÁGENES antes de subir a Storage
+   Reduce el peso de las fotos (registro fotográfico, planos escaneados)
+   redimensionando al tamaño máximo útil en pantalla y recomprimiendo a
+   JPEG con buena calidad. Los PDF, Word, Excel, etc. pasan sin tocar.
+========================================================================= */
+const IMG_MAX_DIMENSION = 1920; // lado más largo, en píxeles — de sobra para ver en pantalla o imprimir
+const IMG_QUALITY = 0.82;       // calidad JPEG (0-1) — buen balance tamaño/nitidez
+const IMG_SKIP_UNDER_BYTES = 300 * 1024; // si ya pesa menos de esto, no vale la pena recomprimir
+
+function esImagenComprimible(file) {
+  const ext = (file.name || "").split(".").pop().toLowerCase();
+  return ["jpg", "jpeg", "png", "webp"].includes(ext) && file.size > IMG_SKIP_UNDER_BYTES;
+}
+
+function comprimirImagen(file) {
+  return new Promise((resolve) => {
+    const objectUrl = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > IMG_MAX_DIMENSION || height > IMG_MAX_DIMENSION) {
+        const ratio = Math.min(IMG_MAX_DIMENSION / width, IMG_MAX_DIMENSION / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(objectUrl);
+        if (!blob || blob.size >= file.size) {
+          // La compresión no ayudó (raro, pero pasa con imágenes ya optimizadas) — usar el original.
+          resolve(file);
+          return;
+        }
+        const nuevoNombre = file.name.replace(/\.(png|webp|jpeg|jpg)$/i, "") + ".jpg";
+        resolve(new File([blob], nuevoNombre, { type: "image/jpeg", lastModified: Date.now() }));
+      }, "image/jpeg", IMG_QUALITY);
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(file); }; // si falla, sube el original
+    img.src = objectUrl;
+  });
+}
+
+async function prepararArchivoParaSubir(file) {
+  if (!esImagenComprimible(file)) return file;
+  try {
+    return await comprimirImagen(file);
+  } catch (e) {
+    console.warn("No se pudo comprimir la imagen, se sube el original:", e);
+    return file;
+  }
+}
+
 function DocumentsView({ user, projects, documents, onUpload, onDelete, showToast }) {
   const isCoord = esRolAdmin(user.role);
   const visibleProjects = isCoord ? projects : projects.filter(p => (user.projectIds || []).includes(p.id));
   const [selectedProjectId, setSelectedProjectId] = useState(visibleProjects[0]?.id || "");
   const [uploading, setUploading] = useState(false);
+  const [compressing, setCompressing] = useState(false);
   const [progress, setProgress] = useState(0);
   const [uploadCategoria, setUploadCategoria] = useState(CATEGORIAS_DOCUMENTO[0].key);
   const inputRef = useRef(null);
@@ -2356,13 +2444,21 @@ function DocumentsView({ user, projects, documents, onUpload, onDelete, showToas
     try {
       for (let i = 0; i < files.length; i++) {
         setProgress(0);
-        await onUpload(files[i], selectedProjectId, pct => setProgress(Math.round((i * 100 + pct) / files.length)), uploadCategoria);
+        setCompressing(esImagenComprimible(files[i]));
+        const pesoOriginal = files[i].size;
+        const archivoParaSubir = await prepararArchivoParaSubir(files[i]);
+        setCompressing(false);
+        if (archivoParaSubir !== files[i] && archivoParaSubir.size < pesoOriginal) {
+          const ahorro = Math.round((1 - archivoParaSubir.size / pesoOriginal) * 100);
+          console.log(`Imagen comprimida: ${formatBytes(pesoOriginal)} → ${formatBytes(archivoParaSubir.size)} (-${ahorro}%)`);
+        }
+        await onUpload(archivoParaSubir, selectedProjectId, pct => setProgress(Math.round((i * 100 + pct) / files.length)), uploadCategoria);
       }
       showToast(files.length === 1 ? "Documento cargado correctamente." : `${files.length} documentos cargados correctamente.`);
     } catch (err) {
       console.error(err);
       showToast("No se pudo cargar uno de los documentos. Revisa Storage y las reglas de seguridad.");
-    } finally { setUploading(false); setProgress(0); }
+    } finally { setUploading(false); setProgress(0); setCompressing(false); }
   }
 
   return (
@@ -2424,13 +2520,13 @@ function DocumentsView({ user, projects, documents, onUpload, onDelete, showToas
               {isCoord && (
                 <div className="sm:pb-[1.6rem]">
                   <Button variant="primary" onClick={() => inputRef.current?.click()} disabled={uploading}>
-                    <Icon.plus className="w-[1.7rem] h-[1.7rem]"/>{uploading ? `Cargando ${progress}%` : "Cargar documento"}
+                    <Icon.plus className="w-[1.7rem] h-[1.7rem]"/>{compressing ? "Comprimiendo imagen..." : uploading ? `Cargando ${progress}%` : "Cargar documento"}
                   </Button>
                   <input ref={inputRef} type="file" multiple accept={DOCUMENT_ACCEPT} className="hidden" onChange={handleFiles}/>
                 </div>
               )}
             </div>
-            {isCoord && <p className="text-[1.15rem] text-chp-grayLight mt-[.8rem]">Formatos: PDF, JPG/PNG, TXT, Word, Excel, PowerPoint y CSV. Máximo 25 MB por archivo.</p>}
+            {isCoord && <p className="text-[1.15rem] text-chp-grayLight mt-[.8rem]">Formatos: PDF, JPG/PNG, TXT, Word, Excel, PowerPoint y CSV. Máximo 25 MB por archivo. Las fotos se comprimen automáticamente antes de subir.</p>}
           </Card>
 
           {activeCategoria && (
