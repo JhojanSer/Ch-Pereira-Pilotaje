@@ -82,9 +82,10 @@
   }
 </script>
 <style>
-  html { font-size: 62.5%; }
-  body { font-size: 1.6rem; }
+  html { font-size: 62.5%; max-width: 100%; overflow-x: hidden; }
+  body { font-size: 1.6rem; max-width: 100%; overflow-x: hidden; }
   * { box-sizing: border-box; }
+  #root { min-width: 0; }
   ::-webkit-scrollbar { width: 0.8rem; height: 0.8rem; }
   ::-webkit-scrollbar-thumb { background: #C9D3DA; border-radius: 999px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -359,7 +360,7 @@ function Badge({ children, tone = "blue" }) {
   return <span className={"inline-flex items-center px-[1rem] py-[0.4rem] rounded-full text-[1.15rem] font-semibold " + tones[tone]}>{children}</span>;
 }
 function Card({ children, className }) {
-  return <div className={"bg-white rounded-[1.4rem] border border-gray-100 shadow-[0_0.4rem_1.6rem_rgba(26,82,118,0.06)] " + (className || "")}>{children}</div>;
+  return <div className={"bg-white rounded-[1.4rem] border border-gray-100 shadow-[0_0.4rem_1.6rem_rgba(26,82,118,0.06)] min-w-0 " + (className || "")}>{children}</div>;
 }
 function Toast({ message, onClose }) {
   useEffect(() => {
@@ -1500,7 +1501,7 @@ function Dashboard({ projects, reports, users }) {
   });
 
   return (
-    <div className="grid gap-[1.4rem] sm:gap-[2rem]">
+    <div className="grid gap-[1.4rem] sm:gap-[2rem] min-w-0 w-full">
       <div>
         <p className="eyebrow mb-[.4rem]">Panel de control</p>
         <h1 className="font-display text-[2rem] sm:text-[2.4rem] font-extrabold text-chp-gray">Resumen de operación</h1>
@@ -2564,10 +2565,10 @@ function App() {
   const isCoord = currentUser.role === "coordinador";
 
   return (
-    <div className="min-h-screen relative overflow-x-hidden">
+    <div className="min-h-screen relative overflow-x-hidden w-full">
       <div className="chp-watermark"><Icon.machine className="w-full h-full" /></div>
       <Header user={currentUser} onLogout={handleLogout} view={view} setView={(v) => { setEditingReport(null); setEditingActivity(null); setView(v); }} />
-      <main className="max-w-[130rem] mx-auto px-[1.4rem] sm:px-[2.4rem] py-[1.6rem] sm:py-[2.4rem]">
+      <main className="max-w-[130rem] mx-auto px-[1.4rem] sm:px-[2.4rem] py-[1.6rem] sm:py-[2.4rem] min-w-0">
         {!isCoord && view === "nuevo" && (
           <NuevoRegistroView
             user={currentUser}
