@@ -309,7 +309,7 @@ function downloadCSV(filename, csvString) {
 ========================================================================= */
 function Field({ label, children, required, hint }) {
   return (
-    <div className="flex flex-col gap-[0.5rem] mb-[1.6rem]">
+    <div className="flex flex-col gap-[0.5rem] mb-[1.6rem] min-w-0 max-w-full">
       <label className="text-[1.2rem] font-semibold text-chp-gray uppercase tracking-wide">
         {label} {required && <span className="text-chp-blue">*</span>}
       </label>
@@ -326,13 +326,13 @@ function TextInput(props) {
     <input
       inputMode={autoInputMode}
       {...rest}
-      className={"field-focus border-[0.15rem] border-gray-200 rounded-[0.8rem] px-[1.4rem] py-[1.1rem] text-[1.6rem] sm:text-[1.5rem] bg-white transition-all " + (className || "")}
+      className={"field-focus border-[0.15rem] border-gray-200 rounded-[0.8rem] px-[1.4rem] py-[1.1rem] text-[1.6rem] sm:text-[1.5rem] bg-white transition-all w-full min-w-0 max-w-full " + (className || "")}
     />
   );
 }
 function SelectInput({ children, className, ...rest }) {
   return (
-    <select {...rest} className={"field-focus border-[0.15rem] border-gray-200 rounded-[0.8rem] px-[1.4rem] py-[1.1rem] text-[1.5rem] bg-white transition-all " + (className || "")}>
+    <select {...rest} className={"field-focus border-[0.15rem] border-gray-200 rounded-[0.8rem] px-[1.4rem] py-[1.1rem] text-[1.5rem] bg-white transition-all w-full min-w-0 max-w-full " + (className || "")}>
       {children}
     </select>
   );
@@ -340,7 +340,7 @@ function SelectInput({ children, className, ...rest }) {
 function TextArea(props) {
   const { className, ...rest } = props;
   return (
-    <textarea {...rest} className={"field-focus border-[0.15rem] border-gray-200 rounded-[0.8rem] px-[1.4rem] py-[1.1rem] text-[1.5rem] bg-white transition-all resize-y min-h-[9rem] " + (className || "")} />
+    <textarea {...rest} className={"field-focus border-[0.15rem] border-gray-200 rounded-[0.8rem] px-[1.4rem] py-[1.1rem] text-[1.5rem] bg-white transition-all resize-y min-h-[9rem] w-full min-w-0 max-w-full " + (className || "")} />
   );
 }
 function Button({ variant = "primary", className, children, ...rest }) {
@@ -905,7 +905,7 @@ function ReportForm({ user, projects, reports, onSave, editing, onDoneEditing, s
         {stepKey === "generales" && (
           <div>
             <SectionTitle>Datos generales</SectionTitle>
-            <div className="grid sm:grid-cols-2 gap-x-[1.6rem]">
+            <div className="grid min-w-0 sm:grid-cols-2 gap-x-[1.6rem]">
               <Field label="Responsable de la obra" required>
                 <TextInput value={form.responsable} onChange={e => update("responsable", e.target.value)} />
                 {errors.responsable && <ErrorText>{errors.responsable}</ErrorText>}
@@ -935,7 +935,7 @@ function ReportForm({ user, projects, reports, onSave, editing, onDoneEditing, s
         {stepKey === "pilote" && (
           <div>
             <SectionTitle>Identificación del pilote</SectionTitle>
-            <div className="grid sm:grid-cols-3 gap-x-[1.6rem]">
+            <div className="grid min-w-0 sm:grid-cols-3 gap-x-[1.6rem]">
               <Field label="Elemento N°" required hint="Ej: P-01">
                 <TextInput value={form.elemento} onChange={e => update("elemento", e.target.value)} placeholder="P-01" />
                 {errors.elemento && <ErrorText>{errors.elemento}</ErrorText>}
@@ -955,7 +955,7 @@ function ReportForm({ user, projects, reports, onSave, editing, onDoneEditing, s
         {stepKey === "concreto" && (
           <div>
             <SectionTitle>Concreto</SectionTitle>
-            <div className="grid sm:grid-cols-2 gap-x-[1.6rem]">
+            <div className="grid min-w-0 sm:grid-cols-2 gap-x-[1.6rem]">
               <Field label="Tipo de concreto">
                 <SelectInput value={form.tipoConcreto} onChange={e => update("tipoConcreto", e.target.value)}>
                   {TIPOS_CONCRETO.map(t => <option key={t} value={t}>{t}</option>)}
@@ -976,7 +976,7 @@ function ReportForm({ user, projects, reports, onSave, editing, onDoneEditing, s
         {stepKey === "cantidades" && (
           <div>
             <SectionTitle>Datos y cantidades del pilote</SectionTitle>
-            <div className="grid sm:grid-cols-2 gap-x-[1.6rem]">
+            <div className="grid min-w-0 sm:grid-cols-2 gap-x-[1.6rem]">
               <Field label="Longitud de excavación (m)">
                 <TextInput type="number" min="0" step="0.01" value={form.longExcavacion} onChange={e => update("longExcavacion", e.target.value)} />
                 {errors.longExcavacion && <ErrorText>{errors.longExcavacion}</ErrorText>}
@@ -1003,7 +1003,7 @@ function ReportForm({ user, projects, reports, onSave, editing, onDoneEditing, s
         {stepKey === "equipos" && (
           <div>
             <SectionTitle>Equipos y tiempos</SectionTitle>
-            <div className="grid sm:grid-cols-2 gap-x-[1.6rem]">
+            <div className="grid min-w-0 sm:grid-cols-2 gap-x-[1.6rem]">
               <Field label="Equipo de perforación">
                 <SelectInput value={form.equipoPerforacion} onChange={e => update("equipoPerforacion", e.target.value)}>
                   {EQUIPOS_PERFORACION.map(t => <option key={t} value={t}>{t}</option>)}
@@ -1198,10 +1198,10 @@ function ActivityLogForm({ user, projects, onSave, editing, onDoneEditing, showT
   }
 
   return (
-    <Card className="p-[2rem] sm:p-[2.8rem] max-w-[62rem] mx-auto fade-slide">
+    <Card className="p-[2rem] sm:p-[2.8rem] max-w-[62rem] mx-auto fade-slide min-w-0">
       <SectionTitle>{editing ? "Editar actividad" : "Registrar actividad ejecutada"}</SectionTitle>
-      <form onSubmit={handleSubmit}>
-        <div className="grid sm:grid-cols-2 gap-x-[1.6rem]">
+      <form onSubmit={handleSubmit} className="min-w-0">
+        <div className="grid sm:grid-cols-2 gap-x-[1.6rem] min-w-0">
           <Field label="Proyecto" required>
             <SelectInput value={form.proyectoId} onChange={e => updateProject(e.target.value)}>
               {myProjects.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
@@ -1734,7 +1734,7 @@ function ActivitiesDashboard({ projects, avances, users, onDelete }) {
   }
 
   return (
-    <div className="grid gap-[2.4rem]">
+    <div className="grid gap-[2.4rem] min-w-0 w-full">
       <div>
         <h2 className="text-[1.9rem] font-bold text-chp-blue mb-[1.4rem]">Avance de actividades contratadas</h2>
         {projectsWithActividades.length === 0 ? (
@@ -1751,10 +1751,10 @@ function ActivitiesDashboard({ projects, avances, users, onDelete }) {
                     const ejec = avances.filter(av => av.proyectoId === p.id && av.actividadId === a.id).reduce((s, av) => s + (av.cantidadEjecutada || 0), 0);
                     const pct = a.cantidadContratada ? Math.min(100, round((ejec / a.cantidadContratada) * 100, 0)) : 0;
                     return (
-                      <div key={a.id}>
-                        <div className="flex justify-between text-[1.3rem] mb-[0.4rem]">
-                          <span className="font-medium">{a.nombre}</span>
-                          <span className="text-chp-grayLight">{round(ejec,2)} / {a.cantidadContratada} {a.unidad} · {pct}%</span>
+                      <div key={a.id} className="min-w-0">
+                        <div className="flex flex-wrap justify-between gap-x-[1rem] gap-y-[0.2rem] text-[1.3rem] mb-[0.4rem]">
+                          <span className="font-medium break-words min-w-0">{a.nombre}</span>
+                          <span className="text-chp-grayLight whitespace-nowrap shrink-0">{round(ejec,2)} / {a.cantidadContratada} {a.unidad} · {pct}%</span>
                         </div>
                         <div className="h-[0.8rem] bg-gray-100 rounded-full overflow-hidden">
                           <div className={"h-full rounded-full " + (pct >= 100 ? "bg-chp-blue" : "bg-chp-green")} style={{ width: pct + "%" }}></div>
@@ -1769,17 +1769,17 @@ function ActivitiesDashboard({ projects, avances, users, onDelete }) {
         )}
       </div>
 
-      <div>
+      <div className="min-w-0">
         <h2 className="text-[1.9rem] font-bold text-chp-blue mb-[1.4rem]">Registros diarios de actividades</h2>
         <div className="flex flex-wrap items-end gap-[1.2rem] mb-[1.8rem]">
           <Field label="Proyecto">
-            <SelectInput value={filterProject} onChange={e => setFilterProject(e.target.value)} className="min-w-[20rem]">
+            <SelectInput value={filterProject} onChange={e => setFilterProject(e.target.value)} className="min-w-[16rem]">
               <option value="">Todos</option>
               {projects.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
             </SelectInput>
           </Field>
           <Field label="Ingeniero">
-            <SelectInput value={filterEngineer} onChange={e => setFilterEngineer(e.target.value)} className="min-w-[18rem]">
+            <SelectInput value={filterEngineer} onChange={e => setFilterEngineer(e.target.value)} className="min-w-[16rem]">
               <option value="">Todos</option>
               {engineers.map(u => <option key={u.id} value={u.id}>{u.nombre} {u.apellidos}</option>)}
             </SelectInput>
@@ -2046,10 +2046,10 @@ function ProjectsManager({ projects, reports, avances, showToast }) {
                         const ejec = avances.filter(av => av.proyectoId === p.id && av.actividadId === a.id).reduce((s, av) => s + (av.cantidadEjecutada || 0), 0);
                         const pct = a.cantidadContratada ? Math.min(100, round((ejec / a.cantidadContratada) * 100, 0)) : 0;
                         return (
-                          <div key={a.id} className="text-[1.25rem]">
-                            <div className="flex justify-between mb-[0.3rem]">
-                              <span>{a.nombre}</span>
-                              <span className="text-chp-grayLight">{round(ejec,2)} / {a.cantidadContratada} {a.unidad}</span>
+                          <div key={a.id} className="text-[1.25rem] min-w-0">
+                            <div className="flex flex-wrap justify-between gap-x-[1rem] gap-y-[0.2rem] mb-[0.3rem]">
+                              <span className="break-words min-w-0">{a.nombre}</span>
+                              <span className="text-chp-grayLight whitespace-nowrap shrink-0">{round(ejec,2)} / {a.cantidadContratada} {a.unidad}</span>
                             </div>
                             <div className="h-[0.6rem] bg-gray-100 rounded-full overflow-hidden">
                               <div className="h-full bg-chp-green rounded-full" style={{ width: pct + "%" }}></div>
@@ -2159,7 +2159,7 @@ function UsersManager({ users, projects, currentUser, showToast }) {
 
       {editing && (
         <Card className="p-[2rem] fade-slide">
-          <div className="grid sm:grid-cols-2 gap-x-[1.6rem]">
+          <div className="grid min-w-0 sm:grid-cols-2 gap-x-[1.6rem]">
             <Field label="Nombre" required><TextInput value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} /></Field>
             <Field label="Apellidos" required><TextInput value={form.apellidos} onChange={e => setForm({ ...form, apellidos: e.target.value })} /></Field>
             <Field label="Correo electrónico" required hint={editing !== "new" ? "No se puede cambiar aquí" : "Será su usuario de acceso"}>
