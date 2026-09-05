@@ -343,6 +343,20 @@ function TextArea(props) {
     <textarea {...rest} className={"field-focus border-[0.15rem] border-gray-200 rounded-[0.8rem] px-[1.4rem] py-[1.1rem] text-[1.5rem] bg-white transition-all resize-y min-h-[9rem] w-full min-w-0 max-w-full " + (className || "")} />
   );
 }
+function SearchInput({ value, onChange, placeholder }) {
+  return (
+    <div className="relative min-w-0">
+      <Icon.search className="w-[1.7rem] h-[1.7rem] absolute left-[1.3rem] top-1/2 -translate-y-1/2 text-chp-grayLight pointer-events-none" />
+      <TextInput
+        type="text"
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder || "Buscar..."}
+        className="pl-[4.2rem]"
+      />
+    </div>
+  );
+}
 function Button({ variant = "primary", className, children, ...rest }) {
   const variants = {
     primary: "bg-chp-green hover:bg-chp-greenDark text-white shadow-[0_0.3rem_0.8rem_rgba(142,198,63,0.35)]",
@@ -409,6 +423,34 @@ function Modal({ title, onClose, children }) {
     </div>
   );
 }
+/* =========================================================================
+   CONFIRMACIÓN PROPIA (no usa confirm()/alert() del navegador — esos
+   diálogos nativos no se muestran de forma confiable dentro de la app
+   instalada como PWA/APK en Android, por eso se construye uno propio).
+========================================================================= */
+function ConfirmModal({ state, onCancel }) {
+  if (!state) return null;
+  return (
+    <Modal title={state.title || "Confirmar eliminación"} onClose={onCancel}>
+      <div className="flex items-start gap-[1.4rem] mb-[2.2rem]">
+        <div className="w-[4.4rem] h-[4.4rem] rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0">
+          <Icon.alert className="w-[2.2rem] h-[2.2rem]" />
+        </div>
+        <p className="text-[1.45rem] text-chp-gray leading-relaxed pt-[.6rem]">{state.message}</p>
+      </div>
+      <div className="flex justify-end gap-[1rem]">
+        <Button variant="ghost" onClick={onCancel}>Cancelar</Button>
+        <Button
+          onClick={state.onConfirm}
+          className={"!bg-red-600 hover:!bg-red-700 !text-white !border-red-600"}
+        >
+          <Icon.trash className="w-[1.6rem] h-[1.6rem]" /> {state.confirmLabel || "Sí, eliminar"}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
 function DetailRow({ label, value }) {
   return (
     <div className="py-[0.9rem] border-b border-gray-100 grid grid-cols-[16rem_1fr] gap-[1rem]">
@@ -475,6 +517,7 @@ function ActivityDetailModal({ avance, projectName, engineerName, onClose }) {
 
 /* Icon set (inline SVG, sin dependencias externas) */
 const Icon = {
+  search: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
   logout: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
   plus: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
   chart: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
@@ -611,6 +654,15 @@ function LoginScreen() {
               Olvidé mi contraseña
             </button>
           </form>
+          <a
+            href="./Manual_Usuario_CHP_Pilotaje.pdf"
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+            className="w-full flex items-center justify-center gap-[0.8rem] text-[1.3rem] font-semibold text-chp-grayLight border-[0.15rem] border-gray-200 rounded-[0.8rem] py-[1.1rem] mt-[1.6rem] hover:border-chp-blue hover:text-chp-blue transition-all"
+          >
+            <Icon.file className="w-[1.6rem] h-[1.6rem]" /> Manual de Usuario
+          </a>
         </Card>
         <p className="text-center text-[1.2rem] text-chp-grayLight mt-[2rem]">
           Cada usuario accede únicamente con su propia contraseña. Contacta al coordinador de proyectos si la olvidaste.
@@ -1094,8 +1146,15 @@ function ErrorText({ children }) {
    LISTADO "MIS REPORTES" (ingeniero)
 ========================================================================= */
 function MyReportsList({ user, projects, reports, onEdit, onDelete }) {
+  const [busqueda, setBusqueda] = useState("");
   const mine = reports.filter(r => r.ingenieroId === user.id).sort((a,b) => b.createdAt - a.createdAt);
   const projectName = (id) => (projects.find(p => p.id === id) || {}).nombre || "—";
+
+  const q = busqueda.trim().toLowerCase();
+  const filtradas = !q ? mine : mine.filter(r => {
+    const campos = [r.elemento, projectName(r.proyectoId), String(r.consecutivo || ""), fmtFecha(r.fecha), r.observaciones];
+    return campos.some(c => (c || "").toString().toLowerCase().includes(q));
+  });
 
   if (mine.length === 0) {
     return (
@@ -1107,7 +1166,13 @@ function MyReportsList({ user, projects, reports, onEdit, onDelete }) {
 
   return (
     <div className="grid gap-[1.2rem]">
-      {mine.map(r => (
+      <SearchInput value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar por elemento, obra, consecutivo o fecha..." />
+      {filtradas.length === 0 && (
+        <Card className="p-[3rem] text-center text-chp-grayLight">
+          <p className="text-[1.4rem]">No hay pilotes que coincidan con "{busqueda}".</p>
+        </Card>
+      )}
+      {filtradas.map(r => (
         <Card key={r.id} className="p-[1.8rem] flex flex-col sm:flex-row sm:items-center gap-[1.2rem] justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-[1rem] flex-wrap">
@@ -1242,8 +1307,15 @@ function ActivityLogForm({ user, projects, onSave, editing, onDoneEditing, showT
    LISTADO "MIS AVANCES DE ACTIVIDADES" (ingeniero)
 ========================================================================= */
 function MyActivityLogs({ user, projects, avances, onEdit, onDelete }) {
+  const [busqueda, setBusqueda] = useState("");
   const mine = avances.filter(a => a.ingenieroId === user.id).sort((a,b) => b.createdAt - a.createdAt);
   const projectName = (id) => (projects.find(p => p.id === id) || {}).nombre || "—";
+
+  const q = busqueda.trim().toLowerCase();
+  const filtradas = !q ? mine : mine.filter(a => {
+    const campos = [a.actividadNombre, projectName(a.proyectoId), fmtFecha(a.fecha), a.observaciones];
+    return campos.some(c => (c || "").toString().toLowerCase().includes(q));
+  });
 
   if (mine.length === 0) {
     return (
@@ -1255,7 +1327,13 @@ function MyActivityLogs({ user, projects, avances, onEdit, onDelete }) {
 
   return (
     <div className="grid gap-[1.2rem]">
-      {mine.map(a => (
+      <SearchInput value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar por actividad, obra o fecha..." />
+      {filtradas.length === 0 && (
+        <Card className="p-[3rem] text-center text-chp-grayLight">
+          <p className="text-[1.4rem]">No hay actividades que coincidan con "{busqueda}".</p>
+        </Card>
+      )}
+      {filtradas.map(a => (
         <Card key={a.id} className="p-[1.8rem] flex flex-col sm:flex-row sm:items-center gap-[1.2rem] justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-[1rem] flex-wrap">
@@ -1590,17 +1668,23 @@ function ReportsTable({ reports, projects, users, onDelete }) {
   const [filterEngineer, setFilterEngineer] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
+  const [busqueda, setBusqueda] = useState("");
   const [viewingReport, setViewingReport] = useState(null);
 
-  const engineers = users.filter(u => u.role === "ingeniero");
+  const engineers = users.filter(u => !esRolAdmin(u.role));
   const projectName = (id) => (projects.find(p => p.id === id) || {}).nombre || "—";
   const engineerName = (id) => { const u = users.find(x => x.id === id); return u ? (u.nombre + " " + u.apellidos) : "—"; };
 
+  const q = busqueda.trim().toLowerCase();
   const filtered = reports.filter(r => {
     if (filterProject && r.proyectoId !== filterProject) return false;
     if (filterEngineer && r.ingenieroId !== filterEngineer) return false;
     if (filterDateFrom && r.fecha < filterDateFrom) return false;
     if (filterDateTo && r.fecha > filterDateTo) return false;
+    if (q) {
+      const campos = [r.elemento, String(r.consecutivo || ""), projectName(r.proyectoId), engineerName(r.ingenieroId), r.contratante, r.observaciones, r.equipoPerforacion];
+      if (!campos.some(c => (c || "").toString().toLowerCase().includes(q))) return false;
+    }
     return true;
   }).sort((a, b) => b.createdAt - a.createdAt);
 
@@ -1646,6 +1730,9 @@ function ReportsTable({ reports, projects, users, onDelete }) {
 
   return (
     <div>
+      <div className="mb-[1.2rem] max-w-[42rem]">
+        <SearchInput value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar por elemento, consecutivo, obra, ingeniero..." />
+      </div>
       <div className="flex flex-wrap items-end gap-[1.2rem] mb-[1rem]">
         <Field label="Proyecto">
           <SelectInput value={filterProject} onChange={e => setFilterProject(e.target.value)} className="min-w-[18rem]">
@@ -1734,18 +1821,24 @@ function ActivitiesDashboard({ projects, avances, users, onDelete }) {
   const [filterProject, setFilterProject] = useState("");
   const [filterEngineer, setFilterEngineer] = useState("");
   const [filterDate, setFilterDate] = useState("");
+  const [busqueda, setBusqueda] = useState("");
   const [viewingActivity, setViewingActivity] = useState(null);
 
-  const engineers = users.filter(u => u.role === "ingeniero");
+  const engineers = users.filter(u => !esRolAdmin(u.role));
   const projectName = (id) => (projects.find(p => p.id === id) || {}).nombre || "—";
   const engineerName = (id) => { const u = users.find(x => x.id === id); return u ? (u.nombre + " " + u.apellidos) : "—"; };
 
   const projectsWithActividades = projects.filter(p => (p.actividades || []).length > 0);
 
+  const q = busqueda.trim().toLowerCase();
   const filtered = avances.filter(a => {
     if (filterProject && a.proyectoId !== filterProject) return false;
     if (filterEngineer && a.ingenieroId !== filterEngineer) return false;
     if (filterDate && a.fecha !== filterDate) return false;
+    if (q) {
+      const campos = [a.actividadNombre, projectName(a.proyectoId), engineerName(a.ingenieroId), a.observaciones];
+      if (!campos.some(c => (c || "").toString().toLowerCase().includes(q))) return false;
+    }
     return true;
   }).sort((a, b) => b.createdAt - a.createdAt);
 
@@ -1800,6 +1893,9 @@ function ActivitiesDashboard({ projects, avances, users, onDelete }) {
 
       <div className="min-w-0">
         <h2 className="text-[1.9rem] font-bold text-chp-blue mb-[1.4rem]">Registros diarios de actividades</h2>
+        <div className="mb-[1.2rem] max-w-[42rem]">
+          <SearchInput value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar por actividad, obra o ingeniero..." />
+        </div>
         <div className="flex flex-wrap items-end gap-[1.2rem] mb-[1.8rem]">
           <Field label="Proyecto">
             <SelectInput value={filterProject} onChange={e => setFilterProject(e.target.value)} className="min-w-[16rem]">
@@ -1877,7 +1973,7 @@ function emptyProjectForm() {
   return { nombre: "", contratante: "", ubicacion: "", estado: "Activo", pilotesProgramados: "", actividades: [] };
 }
 
-function ProjectsManager({ projects, reports, avances, showToast }) {
+function ProjectsManager({ projects, reports, avances, showToast, askConfirm }) {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyProjectForm());
   const [saving, setSaving] = useState(false);
@@ -1939,11 +2035,13 @@ function ProjectsManager({ projects, reports, avances, showToast }) {
   }
   async function remove(id) {
     if (reports.some(r => r.proyectoId === id) || avances.some(a => a.proyectoId === id)) {
-      alert("No puedes eliminar un proyecto con reportes o avances registrados.");
+      showToast("No puedes eliminar un proyecto con reportes o avances registrados.");
       return;
     }
-    if (!confirm("¿Eliminar este proyecto?")) return;
-    await fsDelete("proyectos", id);
+    askConfirm("¿Eliminar este proyecto de forma permanente? Esta acción no se puede deshacer.", async () => {
+      await fsDelete("proyectos", id);
+      showToast("Proyecto eliminado.");
+    });
   }
 
   return (
@@ -2101,7 +2199,7 @@ function ProjectsManager({ projects, reports, avances, showToast }) {
 /* =========================================================================
    GESTIÓN DE USUARIOS (contraseñas individuales)
 ========================================================================= */
-function UsersManager({ users, projects, currentUser, showToast }) {
+function UsersManager({ users, projects, currentUser, showToast, askConfirm }) {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyUserFormFn());
   const [saving, setSaving] = useState(false);
@@ -2169,14 +2267,19 @@ function UsersManager({ users, projects, currentUser, showToast }) {
       await fbAuth.sendPasswordResetEmail(u.email);
       showToast("Correo de restablecimiento enviado a " + u.email);
     } catch (err) {
-      alert("No se pudo enviar el correo: " + err.message);
+      showToast("No se pudo enviar el correo: " + err.message);
     }
   }
 
   async function remove(id) {
-    if (id === currentUser.id) { alert("No puedes eliminar tu propio usuario mientras tienes la sesión iniciada."); return; }
-    if (!confirm("Esto elimina el perfil del usuario (pierde acceso a la app). La cuenta de acceso deberá eliminarse aparte desde la consola de Firebase. ¿Continuar?")) return;
-    await fsDelete("usuarios", id);
+    if (id === currentUser.id) { showToast("No puedes eliminar tu propio usuario mientras tienes la sesión iniciada."); return; }
+    askConfirm(
+      "Esto elimina el perfil del usuario (pierde acceso a la app). La cuenta de acceso deberá eliminarse aparte desde la consola de Firebase. ¿Continuar?",
+      async () => {
+        await fsDelete("usuarios", id);
+        showToast("Perfil de usuario eliminado.");
+      }
+    );
   }
 
   return (
@@ -2207,7 +2310,7 @@ function UsersManager({ users, projects, currentUser, showToast }) {
               </SelectInput>
             </Field>
           </div>
-          {form.role === "ingeniero" && (
+          {!esRolAdmin(form.role) && (
             <Field label="Proyectos asignados">
               <div className="flex flex-wrap gap-[0.8rem]">
                 {projects.map(p => (
@@ -2250,7 +2353,7 @@ function UsersManager({ users, projects, currentUser, showToast }) {
                 <button onClick={() => remove(u.id)} className="text-chp-grayLight hover:text-red-600 p-[0.6rem] -m-[0.6rem]"><Icon.trash className="w-[1.6rem] h-[1.6rem]" /></button>
               </div>
             </div>
-            {u.role === "ingeniero" && (
+            {!esRolAdmin(u.role) && (
               <div className="mt-[1rem] flex flex-wrap gap-[0.6rem]">
                 {(u.projectIds || []).map(pid => {
                   const p = projects.find(x => x.id === pid);
@@ -2409,7 +2512,7 @@ async function prepararArchivoParaSubir(file) {
   }
 }
 
-function DocumentsView({ user, projects, documents, onUpload, onDelete, showToast }) {
+function DocumentsView({ user, projects, documents, onUpload, onDelete, showToast, askConfirm }) {
   const isCoord = esRolAdmin(user.role);
   const visibleProjects = isCoord ? projects : projects.filter(p => (user.projectIds || []).includes(p.id));
   const [selectedProjectId, setSelectedProjectId] = useState(visibleProjects[0]?.id || "");
@@ -2550,7 +2653,7 @@ function DocumentsView({ user, projects, documents, onUpload, onDelete, showToas
                     </div>
                   </div>
                   <div className="min-w-0"><h3 className="font-bold text-[1.4rem] break-words">{doc.name}</h3><p className="text-[1.1rem] text-chp-grayLight mt-[.4rem]">{formatBytes(doc.size)} · {fmtFechaHora(doc.uploadedAt)}</p></div>
-                  <div className="mt-auto flex gap-[.7rem]"><button onClick={async () => { try { await openDocumentFile(doc); } catch(e) { console.error(e); showToast("No se pudo abrir/descargar el archivo. Si es la primera configuración, revisaremos CORS de Storage."); } }} className="flex-1 inline-flex items-center justify-center gap-[.6rem] rounded-[.8rem] bg-chp-blue text-white px-[1rem] py-[.9rem] text-[1.2rem] font-semibold"><Icon.download className="w-[1.6rem] h-[1.6rem]"/> Ver / descargar</button>{isCoord && <button onClick={async () => { if (!confirm(`¿Eliminar ${doc.name}?`)) return; try { await onDelete(doc); showToast("Documento eliminado."); } catch(e) { console.error(e); showToast("No se pudo eliminar el documento."); } }} className="w-[4.2rem] rounded-[.8rem] border border-red-100 text-red-500 flex items-center justify-center" title="Eliminar"><Icon.trash className="w-[1.7rem] h-[1.7rem]"/></button>}</div>
+                  <div className="mt-auto flex gap-[.7rem]"><button onClick={async () => { try { await openDocumentFile(doc); } catch(e) { console.error(e); showToast("No se pudo abrir/descargar el archivo. Si es la primera configuración, revisaremos CORS de Storage."); } }} className="flex-1 inline-flex items-center justify-center gap-[.6rem] rounded-[.8rem] bg-chp-blue text-white px-[1rem] py-[.9rem] text-[1.2rem] font-semibold"><Icon.download className="w-[1.6rem] h-[1.6rem]"/> Ver / descargar</button>{isCoord && <button onClick={() => askConfirm(`¿Eliminar "${doc.name}" de forma permanente? Esta acción no se puede deshacer.`, async () => { try { await onDelete(doc); showToast("Documento eliminado."); } catch(e) { console.error(e); showToast("No se pudo eliminar el documento."); } })} className="w-[4.2rem] rounded-[.8rem] border border-red-100 text-red-500 flex items-center justify-center" title="Eliminar"><Icon.trash className="w-[1.7rem] h-[1.7rem]"/></button>}</div>
                 </div>
               );
             })}
@@ -2579,8 +2682,21 @@ function App() {
   const [editingReport, setEditingReport] = useState(null);
   const [editingActivity, setEditingActivity] = useState(null);
   const [toast, setToast] = useState("");
+  const [confirmState, setConfirmState] = useState(null);
 
   function showToast(msg) { setToast(""); setTimeout(() => setToast(msg), 10); }
+  function askConfirm(message, onConfirmCallback, opts = {}) {
+    setConfirmState({
+      message,
+      title: opts.title,
+      confirmLabel: opts.confirmLabel,
+      onConfirm: async () => {
+        setConfirmState(null);
+        await onConfirmCallback();
+      }
+    });
+  }
+  function cancelConfirm() { setConfirmState(null); }
 
   // Estado de autenticación de Firebase
   useEffect(() => {
@@ -2642,16 +2758,20 @@ function App() {
     setEditingReport(null);
   }
   async function deleteReport(id) {
-    if (!confirm("¿Eliminar este reporte de forma permanente?")) return;
-    await fsDelete("reportes", id);
+    askConfirm("¿Eliminar este reporte de forma permanente? Esta acción no se puede deshacer.", async () => {
+      await fsDelete("reportes", id);
+      showToast("Reporte eliminado.");
+    });
   }
   async function saveActivityLog(record) {
     await fsSet("avances", record.id, record);
     setEditingActivity(null);
   }
   async function deleteActivityLog(id) {
-    if (!confirm("¿Eliminar este registro de actividad de forma permanente?")) return;
-    await fsDelete("avances", id);
+    askConfirm("¿Eliminar este registro de actividad de forma permanente? Esta acción no se puede deshacer.", async () => {
+      await fsDelete("avances", id);
+      showToast("Registro de actividad eliminado.");
+    });
   }
   async function saveDocumentFile(file, projectId, onProgress, categoria) {
     if (!esRolAdmin(currentUser.role)) throw new Error("Solo el coordinador o director puede cargar documentos.");
@@ -2704,11 +2824,12 @@ function App() {
         {isCoord && view === "dashboard" && <Dashboard projects={projects} reports={reports} users={users} />}
         {isCoord && view === "reportes" && <ReportsTable reports={reports} projects={projects} users={users} onDelete={deleteReport} />}
         {isCoord && view === "actividades" && <ActivitiesDashboard projects={projects} avances={avances} users={users} onDelete={deleteActivityLog} />}
-        {isCoord && view === "proyectos" && <ProjectsManager projects={projects} reports={reports} avances={avances} showToast={showToast} />}
-        {isCoord && view === "usuarios" && <UsersManager users={users} projects={projects} currentUser={currentUser} showToast={showToast} />}
-        {view === "documentos" && <DocumentsView user={currentUser} projects={projects} documents={documents} onUpload={saveDocumentFile} onDelete={removeDocumentFile} showToast={showToast} />}
+        {isCoord && view === "proyectos" && <ProjectsManager projects={projects} reports={reports} avances={avances} showToast={showToast} askConfirm={askConfirm} />}
+        {isCoord && view === "usuarios" && <UsersManager users={users} projects={projects} currentUser={currentUser} showToast={showToast} askConfirm={askConfirm} />}
+        {view === "documentos" && <DocumentsView user={currentUser} projects={projects} documents={documents} onUpload={saveDocumentFile} onDelete={removeDocumentFile} showToast={showToast} askConfirm={askConfirm} />}
       </main>
       <Toast message={toast} onClose={() => setToast("")} />
+      <ConfirmModal state={confirmState} onCancel={cancelConfirm} />
     </div>
   );
 }
