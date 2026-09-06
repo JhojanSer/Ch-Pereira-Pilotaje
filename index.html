@@ -165,7 +165,7 @@ const EQUIPOS_PERFORACION = [
 ];
 const TIPOS_PERFORACION = ["En seco", "Lodos (bentonita)", "Lodos (polímeros)"];
 const TIPOS_CONCRETO = ["Tremie", "Tremie Tornillo", "Tornillo Autocompactante"];
-const RESISTENCIAS_CONCRETO = ["3000 PSI", "3500 PSI", "4000 PSI", "4500 PSI", "5000 PSI"];
+const RESISTENCIAS_CONCRETO = ["3000 PSI", "3500 PSI", "4000 PSI", "4500 PSI", "5000 PSI", "6000 PSI"];
 const UNIDADES_ACTIVIDAD = ["m", "m²", "m³", "kg", "ton", "un", "ml", "glb", "hrs", "Otra"];
 /* =========================================================================
    PERSISTENCIA — Firestore (colecciones: usuarios, proyectos, reportes)
@@ -230,6 +230,34 @@ async function openDocumentFile(doc) {
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+/* =========================================================================
+   DOCUMENTOS SST — repositorio único, común a todas las obras (no se
+   asocian a un proyecto: cualquier residente o coordinador/director los
+   puede consultar sin importar en qué obra esté).
+========================================================================= */
+async function uploadSSTFile(file, user, onProgress, categoria) {
+  const safeName = file.name.replace(/[^a-zA-Z0-9._ -]/g, "_");
+  const docId = fsNewId("documentosSST");
+  const path = `documentos_sst/${docId}/${safeName}`;
+  const ref = storageRef(path);
+  const task = ref.put(file, { contentType: file.type || "application/octet-stream", customMetadata: { uploadedBy: user.uid } });
+  return await new Promise((resolve, reject) => {
+    task.on("state_changed", snap => {
+      if (onProgress) onProgress(Math.round((snap.bytesTransferred / snap.totalBytes) * 100));
+    }, reject, async () => {
+      try {
+        const record = { id: docId, name: file.name, safeName, size: file.size, contentType: file.type || "application/octet-stream", storagePath: path, categoria: categoria || "Otros", uploadedBy: user.uid, uploadedByName: `${user.nombre || ""} ${user.apellidos || ""}`.trim(), uploadedAt: new Date().toISOString() };
+        await fsSet("documentosSST", docId, record);
+        resolve(record);
+      } catch (e) { reject(e); }
+    });
+  });
+}
+async function deleteSSTFile(doc) {
+  if (doc.storagePath) { try { await storageRef(doc.storagePath).delete(); } catch (e) { console.warn("No se pudo eliminar el archivo del Storage", e); } }
+  await fsDelete("documentosSST", doc.id);
 }
 
 /* =========================================================================
@@ -518,6 +546,7 @@ function ActivityDetailModal({ avance, projectName, engineerName, onClose }) {
 /* Icon set (inline SVG, sin dependencias externas) */
 const Icon = {
   search: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+  shield: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>,
   logout: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>,
   plus: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>,
   chart: (p) => <svg {...p} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>,
@@ -686,12 +715,14 @@ function Header({ user, onLogout, view, setView }) {
         { key: "actividades", label: "Actividades", icon: Icon.clipboard },
         { key: "proyectos", label: "Proyectos", icon: Icon.building },
         { key: "usuarios", label: "Usuarios", icon: Icon.users },
-        { key: "documentos", label: "Documentos de Obra", icon: Icon.file }
+        { key: "documentos", label: "Documentos de Obra", icon: Icon.file },
+        { key: "sst", label: "SST", icon: Icon.shield }
       ]
     : [
         { key: "nuevo", label: "Nuevo registro", icon: Icon.plus },
         { key: "mis-reportes", label: "Mis registros", icon: Icon.list },
-        { key: "documentos", label: "Documentos de Obra", icon: Icon.file }
+        { key: "documentos", label: "Documentos de Obra", icon: Icon.file },
+        { key: "sst", label: "SST", icon: Icon.shield }
       ];
   const currentTab = tabs.find(t => t.key === view);
 
@@ -828,12 +859,13 @@ function emptyReport(user, projects, reports) {
 }
 
 function ReportForm({ user, projects, reports, onSave, editing, onDoneEditing, showToast }) {
+  const myProjects = projects.filter(p => esRolAdmin(user.role) || (user.projectIds || []).includes(p.id));
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState(() => editing || emptyReport(user, projects, reports));
+  const [form, setForm] = useState(() => editing || emptyReport(user, myProjects, reports));
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    setForm(editing || emptyReport(user, projects, reports));
+    setForm(editing || emptyReport(user, myProjects, reports));
     setStep(0);
   }, [editing]);
 
@@ -926,12 +958,11 @@ function ReportForm({ user, projects, reports, onSave, editing, onDoneEditing, s
     if (editing) {
       onDoneEditing();
     } else {
-      setForm(emptyReport(user, projects, reports));
+      setForm(emptyReport(user, myProjects, reports));
     }
     setStep(0);
   }
 
-  const myProjects = projects.filter(p => esRolAdmin(user.role) || (user.projectIds || []).includes(p.id));
   const stepKey = STEPS[step].key;
 
   return (
@@ -2512,6 +2543,161 @@ async function prepararArchivoParaSubir(file) {
   }
 }
 
+/* =========================================================================
+   VISTA: DOCUMENTOS SST — repositorio único para todas las obras
+========================================================================= */
+const CATEGORIAS_SST = [
+  { key: "Procedimientos", label: "Procedimientos", icon: Icon => Icon.blueprint },
+  { key: "Formatos y ATS", label: "Formatos y ATS", icon: Icon => Icon.clipboard },
+  { key: "Reglamentos", label: "Reglamentos", icon: Icon => Icon.file },
+  { key: "Capacitaciones", label: "Capacitaciones", icon: Icon => Icon.users },
+  { key: "Elementos de protección", label: "Elementos de protección", icon: Icon => Icon.shield },
+  { key: "Otros", label: "Otros", icon: Icon => Icon.upload }
+];
+function categoriaSSTIcon(categoria) {
+  const found = CATEGORIAS_SST.find(c => c.key === categoria);
+  return (found || CATEGORIAS_SST[5]).icon(Icon);
+}
+
+function SSTView({ user, documentosSST, onUpload, onDelete, showToast, askConfirm }) {
+  const isCoord = esRolAdmin(user.role);
+  const [uploading, setUploading] = useState(false);
+  const [compressing, setCompressing] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [uploadCategoria, setUploadCategoria] = useState(CATEGORIAS_SST[0].key);
+  const inputRef = useRef(null);
+  const [filter, setFilter] = useState("");
+  const [activeCategoria, setActiveCategoria] = useState(null);
+
+  const docsFiltrados = documentosSST
+    .filter(d => !activeCategoria || (d.categoria || "Otros") === activeCategoria)
+    .filter(d => !filter || d.name.toLowerCase().includes(filter.toLowerCase()))
+    .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+
+  const countsByCategoria = {};
+  CATEGORIAS_SST.forEach(c => { countsByCategoria[c.key] = documentosSST.filter(d => (d.categoria || "Otros") === c.key).length; });
+
+  async function handleFiles(e) {
+    const files = Array.from(e.target.files || []);
+    e.target.value = "";
+    if (!files.length || !isCoord) return;
+    const tooLarge = files.find(f => f.size > 25 * 1024 * 1024);
+    if (tooLarge) { showToast(`El archivo ${tooLarge.name} supera el límite de 25 MB.`); return; }
+    setUploading(true); setProgress(0);
+    try {
+      for (let i = 0; i < files.length; i++) {
+        setProgress(0);
+        setCompressing(esImagenComprimible(files[i]));
+        const archivoParaSubir = await prepararArchivoParaSubir(files[i]);
+        setCompressing(false);
+        await onUpload(archivoParaSubir, pct => setProgress(Math.round((i * 100 + pct) / files.length)), uploadCategoria);
+      }
+      showToast(files.length === 1 ? "Documento SST cargado correctamente." : `${files.length} documentos SST cargados correctamente.`);
+    } catch (err) {
+      console.error(err);
+      showToast("No se pudo cargar uno de los documentos. Revisa Storage y las reglas de seguridad.");
+    } finally { setUploading(false); setProgress(0); setCompressing(false); }
+  }
+
+  return (
+    <div className="fade-slide relative z-[1]">
+      <div className="chp-hero rounded-[1.6rem] p-[2rem] sm:p-[2.6rem] mb-[1.8rem] text-white shadow-sm relative overflow-hidden">
+        <div className="relative">
+          <div className="eyebrow on-dark flex items-center gap-[.8rem] mb-[.6rem]"><Icon.shield className="w-[1.5rem] h-[1.5rem]"/> Seguridad y Salud en el Trabajo</div>
+          <h1 className="font-display text-[2.2rem] sm:text-[2.8rem] font-extrabold">Documentos SST</h1>
+          <p className="text-[1.3rem] sm:text-[1.4rem] opacity-90 mt-[.6rem] max-w-[70rem]">Procedimientos, formatos, ATS y demás documentos de seguridad, comunes a todas las obras — disponibles para cualquier residente, sin importar el proyecto.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-[1rem] mb-[1.6rem]">
+        {CATEGORIAS_SST.map(cat => {
+          const CatIcon = cat.icon(Icon);
+          const isActive = activeCategoria === cat.key;
+          return (
+            <button
+              key={cat.key}
+              onClick={() => setActiveCategoria(isActive ? null : cat.key)}
+              className={"doc-category-tile text-left bg-white rounded-[1.2rem] p-[1.4rem] " + (isActive ? "active" : "border-gray-100")}
+              style={{ borderWidth: "0.15rem", borderStyle: "solid", borderColor: isActive ? undefined : "#F1F3F4" }}
+            >
+              <div className="w-[3.6rem] h-[3.6rem] rounded-[.9rem] bg-chp-bg text-chp-blue flex items-center justify-center mb-[.9rem]">
+                <CatIcon className="w-[1.9rem] h-[1.9rem]" />
+              </div>
+              <p className="text-[1.25rem] font-bold text-chp-gray leading-tight">{cat.label}</p>
+              <p className="text-[1.1rem] text-chp-grayLight mt-[.2rem]">{countsByCategoria[cat.key]} archivo{countsByCategoria[cat.key] !== 1 ? "s" : ""}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      <Card className="mb-[1.6rem]">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-[1.2rem]">
+          <div className="flex-1"><Field label="Buscar documento SST"><TextInput value={filter} onChange={e => setFilter(e.target.value)} placeholder="Ej. procedimiento de izaje, ATS, reglamento..." /></Field></div>
+          {isCoord && (
+            <div className="flex-1"><Field label="Categoría a cargar">
+              <SelectInput value={uploadCategoria} onChange={e => setUploadCategoria(e.target.value)}>
+                {CATEGORIAS_SST.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
+              </SelectInput>
+            </Field></div>
+          )}
+          {isCoord && (
+            <div className="sm:pb-[1.6rem]">
+              <Button variant="primary" onClick={() => inputRef.current?.click()} disabled={uploading}>
+                <Icon.plus className="w-[1.7rem] h-[1.7rem]"/>{compressing ? "Comprimiendo imagen..." : uploading ? `Cargando ${progress}%` : "Cargar documento SST"}
+              </Button>
+              <input ref={inputRef} type="file" multiple accept={DOCUMENT_ACCEPT} className="hidden" onChange={handleFiles}/>
+            </div>
+          )}
+        </div>
+        {isCoord && <p className="text-[1.15rem] text-chp-grayLight mt-[.8rem]">Formatos: PDF, JPG/PNG, TXT, Word, Excel, PowerPoint y CSV. Máximo 25 MB por archivo. Visible para todos los residentes, en todas las obras.</p>}
+      </Card>
+
+      {activeCategoria && (
+        <div className="flex items-center gap-[.8rem] mb-[1.2rem]">
+          <span className="text-[1.3rem] text-chp-grayLight">Filtrando por:</span>
+          <Badge tone="blue">{activeCategoria}</Badge>
+          <button onClick={() => setActiveCategoria(null)} className="text-[1.2rem] text-chp-blue font-semibold hover:underline">Quitar filtro</button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-[1.2rem]">
+        {docsFiltrados.map(doc => {
+          const CatIcon = categoriaSSTIcon(doc.categoria);
+          return (
+            <div key={doc.id} className="doc-card bg-white border border-gray-100 rounded-[1.2rem] p-[1.5rem] flex flex-col gap-[1rem]">
+              <div className="flex items-start justify-between gap-[1rem]">
+                <div className="w-[4.2rem] h-[4.2rem] rounded-[1rem] bg-chp-bg text-chp-blue flex items-center justify-center shrink-0"><CatIcon className="w-[2.1rem] h-[2.1rem]"/></div>
+                <div className="flex flex-col items-end gap-[.4rem]">
+                  <span className="text-[1rem] font-bold px-[.7rem] py-[.35rem] rounded-full bg-chp-bg text-chp-blue">{fileKind(doc.name, doc.contentType)}</span>
+                  <span className="text-[.95rem] font-semibold text-chp-greenDark">{doc.categoria || "Otros"}</span>
+                </div>
+              </div>
+              <div className="min-w-0"><h3 className="font-bold text-[1.4rem] break-words">{doc.name}</h3><p className="text-[1.1rem] text-chp-grayLight mt-[.4rem]">{formatBytes(doc.size)} · {fmtFechaHora(doc.uploadedAt)}</p></div>
+              <div className="mt-auto flex gap-[.7rem]">
+                <button onClick={async () => { try { await openDocumentFile(doc); } catch(e) { console.error(e); showToast("No se pudo abrir/descargar el archivo."); } }} className="flex-1 inline-flex items-center justify-center gap-[.6rem] rounded-[.8rem] bg-chp-blue text-white px-[1rem] py-[.9rem] text-[1.2rem] font-semibold"><Icon.download className="w-[1.6rem] h-[1.6rem]"/> Ver / descargar</button>
+                {isCoord && <button onClick={() => askConfirm(`¿Eliminar "${doc.name}" de forma permanente? Esta acción no se puede deshacer.`, async () => { try { await onDelete(doc); showToast("Documento SST eliminado."); } catch(e) { console.error(e); showToast("No se pudo eliminar el documento."); } })} className="w-[4.2rem] rounded-[.8rem] border border-red-100 text-red-500 flex items-center justify-center" title="Eliminar"><Icon.trash className="w-[1.7rem] h-[1.7rem]"/></button>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {docsFiltrados.length === 0 && (
+        <Card className="mt-[1.2rem]">
+          <div className="py-[2.5rem] text-center text-chp-grayLight">
+            <Icon.shield className="w-[3.4rem] h-[3.4rem] mx-auto mb-[.8rem]"/>
+            <p>No hay documentos SST {filter || activeCategoria ? "que coincidan con el filtro" : "cargados todavía"}.</p>
+            {isCoord && <p className="text-[1.2rem] mt-[.5rem]">Usa "Cargar documento SST" para subir el primero.</p>}
+          </div>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+/* =========================================================================
+   VISTA: DOCUMENTOS DE OBRA — por proyecto
+========================================================================= */
+
 function DocumentsView({ user, projects, documents, onUpload, onDelete, showToast, askConfirm }) {
   const isCoord = esRolAdmin(user.role);
   const visibleProjects = isCoord ? projects : projects.filter(p => (user.projectIds || []).includes(p.id));
@@ -2677,6 +2863,7 @@ function App() {
   const [reports, setReports] = useState([]);
   const [avances, setAvances] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [documentosSST, setDocumentosSST] = useState([]);
 
   const [view, setView] = useState(null);
   const [editingReport, setEditingReport] = useState(null);
@@ -2737,7 +2924,8 @@ function App() {
     const unsubReports = fsSubscribe("reportes", setReports);
     const unsubAvances = fsSubscribe("avances", setAvances);
     const unsubDocuments = fsSubscribe("documentosObra", setDocuments);
-    return () => { unsubUsers(); unsubProjects(); unsubReports(); unsubAvances(); unsubDocuments(); };
+    const unsubDocumentosSST = fsSubscribe("documentosSST", setDocumentosSST);
+    return () => { unsubUsers(); unsubProjects(); unsubReports(); unsubAvances(); unsubDocuments(); unsubDocumentosSST(); };
   }, [firebaseUser]);
 
   const currentUser = profile ? { id: firebaseUser.uid, uid: firebaseUser.uid, email: firebaseUser.email, ...profile } : null;
@@ -2780,6 +2968,14 @@ function App() {
   async function removeDocumentFile(doc) {
     if (!esRolAdmin(currentUser.role)) throw new Error("Solo el coordinador o director puede eliminar documentos.");
     return deleteDocumentFile(doc);
+  }
+  async function saveSSTFile(file, onProgress, categoria) {
+    if (!esRolAdmin(currentUser.role)) throw new Error("Solo el coordinador o director puede cargar documentos SST.");
+    return uploadSSTFile(file, currentUser, onProgress, categoria);
+  }
+  async function removeSSTFile(doc) {
+    if (!esRolAdmin(currentUser.role)) throw new Error("Solo el coordinador o director puede eliminar documentos SST.");
+    return deleteSSTFile(doc);
   }
 
   if (!authReady) return <LoadingScreen label="Cargando..." />;
@@ -2827,6 +3023,7 @@ function App() {
         {isCoord && view === "proyectos" && <ProjectsManager projects={projects} reports={reports} avances={avances} showToast={showToast} askConfirm={askConfirm} />}
         {isCoord && view === "usuarios" && <UsersManager users={users} projects={projects} currentUser={currentUser} showToast={showToast} askConfirm={askConfirm} />}
         {view === "documentos" && <DocumentsView user={currentUser} projects={projects} documents={documents} onUpload={saveDocumentFile} onDelete={removeDocumentFile} showToast={showToast} askConfirm={askConfirm} />}
+        {view === "sst" && <SSTView user={currentUser} documentosSST={documentosSST} onUpload={saveSSTFile} onDelete={removeSSTFile} showToast={showToast} askConfirm={askConfirm} />}
       </main>
       <Toast message={toast} onClose={() => setToast("")} />
       <ConfirmModal state={confirmState} onCancel={cancelConfirm} />
