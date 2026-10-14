@@ -255,6 +255,29 @@ async function uploadSSTFile(file, user, onProgress, categoria) {
     });
   });
 }
+/* Borra un proyecto y TODO lo que depende de él: reportes de pilotes, avances de
+   actividades, documentos de obra (incluyendo sus archivos en Storage) y
+   la asignación del proyecto en el perfil de cada usuario. */
+async function borrarEnLotes(coleccion, ids) {
+  for (let i = 0; i < ids.length; i += 400) {
+    const batch = fbDb.batch();
+    ids.slice(i, i + 400).forEach(id => batch.delete(fbDb.collection(coleccion).doc(id)));
+    await batch.commit();
+  }
+}
+async function deleteProjectCascade(projectId, { reports, avances, documents, users }) {
+  const docsProyecto = documents.filter(d => d.projectId === projectId);
+  for (const d of docsProyecto) {
+    if (d.storagePath) { try { await storageRef(d.storagePath).delete(); } catch (e) { console.warn("No se pudo eliminar el archivo de Storage", e); } }
+  }
+  await borrarEnLotes("documentosObra", docsProyecto.map(d => d.id));
+  await borrarEnLotes("reportes", reports.filter(r => r.proyectoId === projectId).map(r => r.id));
+  await borrarEnLotes("avances", avances.filter(a => a.proyectoId === projectId).map(a => a.id));
+  for (const u of users.filter(u => (u.projectIds || []).includes(projectId))) {
+    await fsSet("usuarios", u.id, { projectIds: u.projectIds.filter(pid => pid !== projectId) });
+  }
+  await fsDelete("proyectos", projectId);
+}
 async function deleteSSTFile(doc) {
   if (doc.storagePath) { try { await storageRef(doc.storagePath).delete(); } catch (e) { console.warn("No se pudo eliminar el archivo del Storage", e); } }
   await fsDelete("documentosSST", doc.id);
@@ -456,20 +479,30 @@ function Modal({ title, onClose, children }) {
    diálogos nativos no se muestran de forma confiable dentro de la app
    instalada como PWA/APK en Android, por eso se construye uno propio).
 ========================================================================= */
-function ConfirmModal({ state, onCancel }) {
-  if (!state) return null;
+function ConfirmBody({ state, onCancel }) {
+  const [typed, setTyped] = useState("");
+  const needsText = !!state.requireText;
+  const canConfirm = !needsText || typed.trim().toLowerCase() === state.requireText.trim().toLowerCase();
   return (
     <Modal title={state.title || "Confirmar eliminación"} onClose={onCancel}>
       <div className="flex items-start gap-[1.4rem] mb-[2.2rem]">
         <div className="w-[4.4rem] h-[4.4rem] rounded-full bg-red-50 text-red-600 flex items-center justify-center shrink-0">
           <Icon.alert className="w-[2.2rem] h-[2.2rem]" />
         </div>
-        <p className="text-[1.45rem] text-chp-gray leading-relaxed pt-[.6rem]">{state.message}</p>
+        <p className="text-[1.45rem] text-chp-gray leading-relaxed pt-[.6rem] whitespace-pre-line">{state.message}</p>
       </div>
+      {needsText && (
+        <div className="mb-[2.2rem]">
+          <Field label={"Para confirmar, escribe: " + state.requireText}>
+            <TextInput value={typed} onChange={e => setTyped(e.target.value)} placeholder={state.requireText} autoFocus />
+          </Field>
+        </div>
+      )}
       <div className="flex justify-end gap-[1rem]">
         <Button variant="ghost" onClick={onCancel}>Cancelar</Button>
         <Button
           onClick={state.onConfirm}
+          disabled={!canConfirm}
           className={"!bg-red-600 hover:!bg-red-700 !text-white !border-red-600"}
         >
           <Icon.trash className="w-[1.6rem] h-[1.6rem]" /> {state.confirmLabel || "Sí, eliminar"}
@@ -477,6 +510,10 @@ function ConfirmModal({ state, onCancel }) {
       </div>
     </Modal>
   );
+}
+function ConfirmModal({ state, onCancel }) {
+  if (!state) return null;
+  return <ConfirmBody state={state} onCancel={onCancel} />;
 }
 
 function DetailRow({ label, value }) {
@@ -2004,7 +2041,7 @@ function emptyProjectForm() {
   return { nombre: "", contratante: "", ubicacion: "", estado: "Activo", pilotesProgramados: "", actividades: [] };
 }
 
-function ProjectsManager({ projects, reports, avances, showToast, askConfirm }) {
+function ProjectsManager({ projects, reports, avances, documents, users, showToast, askConfirm }) {
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyProjectForm());
   const [saving, setSaving] = useState(false);
@@ -2065,179 +2102,31 @@ function ProjectsManager({ projects, reports, avances, showToast, askConfirm }) 
     setEditing(null);
   }
   async function remove(id) {
-    if (reports.some(r => r.proyectoId === id) || avances.some(a => a.proyectoId === id)) {
-      showToast("No puedes eliminar un proyecto con reportes o avances registrados.");
-      return;
-    }
-    askConfirm("¿Eliminar este proyecto de forma permanente? Esta acción no se puede deshacer.", async () => {
-      await fsDelete("proyectos", id);
-      showToast("Proyecto eliminado.");
+    const proyecto = projects.find(p => p.id === id);
+    const nombre = (proyecto && proyecto.nombre) || "este proyecto";
+    const nReportes = reports.filter(r => r.proyectoId === id).length;
+    const nAvances = avances.filter(a => a.proyectoId === id).length;
+    const nDocs = documents.filter(d => d.projectId === id).length;
+    const tieneDatos = nReportes + nAvances + nDocs > 0;
+
+    const mensaje = tieneDatos
+      ? `Vas a eliminar el proyecto "${nombre}" junto con TODA su información:\n\n• ${nReportes} reporte${nReportes !== 1 ? "s" : ""} de pilotes\n• ${nAvances} registro${nAvances !== 1 ? "s" : ""} de actividades\n• ${nDocs} documento${nDocs !== 1 ? "s" : ""} de obra\n\nEsta acción es permanente y no se puede deshacer.`
+      : `¿Eliminar el proyecto "${nombre}" de forma permanente? Esta acción no se puede deshacer.`;
+
+    askConfirm(mensaje, async () => {
+      try {
+        showToast("Eliminando proyecto...");
+        await deleteProjectCascade(id, { reports, avances, documents, users });
+        showToast("Proyecto eliminado.");
+      } catch (err) {
+        console.error(err);
+        showToast("No se pudo eliminar el proyecto por completo. Revisa los permisos e inténtalo de nuevo.");
+      }
+    }, {
+      title: tieneDatos ? "Eliminar proyecto y toda su información" : "Eliminar proyecto",
+      confirmLabel: tieneDatos ? "Sí, eliminar todo" : "Sí, eliminar",
+      requireText: tieneDatos ? nombre : undefined
     });
-  }
-
-  return (
-    <div className="grid gap-[1.6rem]">
-      <div className="flex justify-between items-center flex-wrap gap-[1rem]">
-        <div>
-          <p className="eyebrow mb-[.4rem]">Obras</p>
-          <h2 className="font-display text-[1.9rem] font-extrabold text-chp-gray">Proyectos</h2>
-        </div>
-        <Button variant="secondary" onClick={startNew}><Icon.plus className="w-[1.5rem] h-[1.5rem]" /> Nuevo proyecto</Button>
-      </div>
-
-      {editing && (
-        <Card className="p-[2rem] fade-slide">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-x-[1.6rem]">
-            <Field label="Nombre del proyecto" required>
-              <TextInput value={form.nombre} onChange={e => setForm({ ...form, nombre: e.target.value })} />
-            </Field>
-            <Field label="Cliente / Contratante">
-              <TextInput value={form.contratante} onChange={e => setForm({ ...form, contratante: e.target.value })} />
-            </Field>
-            <Field label="Ubicación">
-              <TextInput value={form.ubicacion} onChange={e => setForm({ ...form, ubicacion: e.target.value })} placeholder="Ciudad / sitio de obra" />
-            </Field>
-            <Field label="Estado">
-              <SelectInput value={form.estado} onChange={e => setForm({ ...form, estado: e.target.value })}>
-                {ESTADOS_PROYECTO.map(e => <option key={e} value={e}>{e}</option>)}
-              </SelectInput>
-            </Field>
-            <Field label="Pilotes programados">
-              <TextInput type="number" min="0" value={form.pilotesProgramados} onChange={e => setForm({ ...form, pilotesProgramados: e.target.value })} />
-            </Field>
-          </div>
-
-          <div className="border-t border-gray-100 pt-[1.6rem] mt-[0.4rem]">
-            <div className="flex items-center justify-between mb-[1.2rem]">
-              <div>
-                <p className="text-[1.4rem] font-bold text-chp-blue">Actividades contratadas</p>
-                <p className="text-[1.2rem] text-chp-grayLight">Todo lo demás del contrato: excavaciones, concretos no estructurales, demoliciones, transporte, etc.</p>
-              </div>
-              <Button variant="ghost" type="button" onClick={addActividadRow}><Icon.plus className="w-[1.4rem] h-[1.4rem]" /> Agregar actividad</Button>
-            </div>
-
-            {form.actividades.length === 0 && (
-              <p className="text-[1.3rem] text-chp-grayLight italic mb-[1rem]">Aún no has agregado actividades contratadas para este proyecto.</p>
-            )}
-
-            <div className="grid gap-[1rem]">
-              {form.actividades.map((a, idx) => (
-                <div key={a.id || idx} className="grid grid-cols-[1fr_10rem_10rem_auto] gap-[0.8rem] items-end bg-chp-bg rounded-[0.8rem] p-[1.2rem]">
-                  <Field label="Actividad">
-                    <TextInput value={a.nombre} onChange={e => updateActividadRow(idx, "nombre", e.target.value)} placeholder="Ej: Excavación manual" className="bg-white" />
-                  </Field>
-                  <Field label="Unidad">
-                    <SelectInput value={a.unidad} onChange={e => updateActividadRow(idx, "unidad", e.target.value)} className="bg-white">
-                      {UNIDADES_ACTIVIDAD.map(u => <option key={u} value={u}>{u}</option>)}
-                    </SelectInput>
-                  </Field>
-                  <Field label="Cant. contratada">
-                    <TextInput type="number" min="0" value={a.cantidadContratada} onChange={e => updateActividadRow(idx, "cantidadContratada", e.target.value)} className="bg-white" />
-                  </Field>
-                  <button type="button" onClick={() => removeActividadRow(idx)} className="mb-[1.6rem] w-[3.6rem] h-[3.6rem] rounded-[0.8rem] border border-gray-200 bg-white flex items-center justify-center text-chp-grayLight hover:text-red-600 hover:border-red-200">
-                    <Icon.trash className="w-[1.5rem] h-[1.5rem]" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex gap-[1rem] mt-[1.6rem]">
-            <Button variant="primary" onClick={save} disabled={saving}>{saving ? "Guardando..." : "Guardar"}</Button>
-            <Button variant="ghost" onClick={() => setEditing(null)}>Cancelar</Button>
-          </div>
-        </Card>
-      )}
-
-      <div className="grid sm:grid-cols-2 gap-[1.4rem]">
-        {projects.map(p => {
-          const ejecutados = reports.filter(r => r.proyectoId === p.id).length;
-          const programados = p.pilotesProgramados || 0;
-          const avance = programados ? Math.min(100, Math.round((ejecutados / programados) * 100)) : 0;
-          const actividades = p.actividades || [];
-          const isExpanded = expanded[p.id];
-          return (
-            <Card key={p.id} className="project-card p-[1.8rem] pl-[2.2rem]">
-              <div className="accent-bar"></div>
-              <div className="flex justify-between items-start gap-[1rem]">
-                <div className="min-w-0">
-                  <p className="font-display font-extrabold text-[1.7rem] text-chp-gray truncate">{p.nombre}</p>
-                  <p className="text-[1.3rem] text-chp-grayLight mt-[.2rem]">{p.contratante || "Sin cliente asignado"}</p>
-                  {p.ubicacion && (
-                    <p className="text-[1.2rem] text-chp-grayLight mt-[.3rem] flex items-center gap-[.5rem]">
-                      <Icon.mapPin className="w-[1.3rem] h-[1.3rem] shrink-0" /> {p.ubicacion}
-                    </p>
-                  )}
-                </div>
-                <div className="flex gap-[0.6rem] shrink-0">
-                  <button onClick={() => startEdit(p)} className="text-chp-grayLight hover:text-chp-blue p-[0.6rem] -m-[0.6rem]"><Icon.edit className="w-[1.6rem] h-[1.6rem]" /></button>
-                  <button onClick={() => remove(p.id)} className="text-chp-grayLight hover:text-red-600 p-[0.6rem] -m-[0.6rem]"><Icon.trash className="w-[1.6rem] h-[1.6rem]" /></button>
-                </div>
-              </div>
-
-              <div className="mt-[1.4rem]"><StatusPill estado={p.estado} /></div>
-
-              <div className="mt-[1.4rem] grid grid-cols-2 gap-[1rem]">
-                <div className="bg-chp-bg rounded-[.9rem] p-[1.1rem]">
-                  <p className="text-[1rem] font-bold text-chp-grayLight uppercase tracking-wide">Avance</p>
-                  <p className="font-display text-[1.9rem] font-extrabold text-chp-blue mt-[.2rem]">{avance}%</p>
-                </div>
-                <div className="bg-chp-bg rounded-[.9rem] p-[1.1rem]">
-                  <p className="text-[1rem] font-bold text-chp-grayLight uppercase tracking-wide">Pilotes ejecutados</p>
-                  <p className="font-display text-[1.9rem] font-extrabold text-chp-gray mt-[.2rem]">{ejecutados}<span className="text-[1.3rem] text-chp-grayLight font-semibold"> / {programados}</span></p>
-                </div>
-              </div>
-              <div className="h-[.6rem] bg-gray-100 rounded-full overflow-hidden mt-[1rem]">
-                <div className={"h-full rounded-full " + (avance >= 100 ? "bg-chp-green" : "bg-chp-blue")} style={{ width: avance + "%" }}></div>
-              </div>
-
-              {actividades.length > 0 && (
-                <div className="mt-[1.4rem]">
-                  <Badge tone="green">{actividades.length} actividad{actividades.length !== 1 ? "es" : ""} contratada{actividades.length !== 1 ? "s" : ""}</Badge>
-                  <button onClick={() => setExpanded(prev => ({ ...prev, [p.id]: !prev[p.id] }))} className="flex items-center gap-[0.5rem] text-[1.25rem] font-semibold text-chp-blue mt-[1rem]">
-                    {isExpanded ? <Icon.chevronDown className="w-[1.4rem] h-[1.4rem]" /> : <Icon.chevronRight className="w-[1.4rem] h-[1.4rem]" />}
-                    Ver actividades contratadas
-                  </button>
-                  {isExpanded && (
-                    <div className="mt-[1rem] grid gap-[0.6rem]">
-                      {actividades.map(a => {
-                        const ejec = avances.filter(av => av.proyectoId === p.id && av.actividadId === a.id).reduce((s, av) => s + (av.cantidadEjecutada || 0), 0);
-                        const pct = a.cantidadContratada ? Math.min(100, round((ejec / a.cantidadContratada) * 100, 0)) : 0;
-                        return (
-                          <div key={a.id} className="text-[1.25rem] min-w-0">
-                            <div className="flex flex-wrap justify-between gap-x-[1rem] gap-y-[0.2rem] mb-[0.3rem]">
-                              <span className="break-words min-w-0">{a.nombre}</span>
-                              <span className="text-chp-grayLight whitespace-nowrap shrink-0">{round(ejec,2)} / {a.cantidadContratada} {a.unidad}</span>
-                            </div>
-                            <div className="h-[0.6rem] bg-gray-100 rounded-full overflow-hidden">
-                              <div className="h-full bg-chp-green rounded-full" style={{ width: pct + "%" }}></div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </Card>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* =========================================================================
-   GESTIÓN DE USUARIOS (contraseñas individuales)
-========================================================================= */
-function UsersManager({ users, projects, currentUser, showToast, askConfirm }) {
-  const [editing, setEditing] = useState(null);
-  const [form, setForm] = useState(emptyUserFormFn());
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState("");
-
-  function emptyUserFormFn() {
-    return { email: "", nombre: "", apellidos: "", role: "ingeniero", password: "", projectIds: [] };
   }
   function startNew() { setEditing("new"); setForm(emptyUserFormFn()); setFormError(""); }
   function startEdit(u) { setEditing(u.id); setForm({ email: u.email || "", nombre: u.nombre, apellidos: u.apellidos, role: u.role, password: "", projectIds: u.projectIds || [] }); setFormError(""); }
@@ -2877,6 +2766,7 @@ function App() {
       message,
       title: opts.title,
       confirmLabel: opts.confirmLabel,
+      requireText: opts.requireText,
       onConfirm: async () => {
         setConfirmState(null);
         await onConfirmCallback();
@@ -3020,7 +2910,7 @@ function App() {
         {isCoord && view === "dashboard" && <Dashboard projects={projects} reports={reports} users={users} />}
         {isCoord && view === "reportes" && <ReportsTable reports={reports} projects={projects} users={users} onDelete={deleteReport} />}
         {isCoord && view === "actividades" && <ActivitiesDashboard projects={projects} avances={avances} users={users} onDelete={deleteActivityLog} />}
-        {isCoord && view === "proyectos" && <ProjectsManager projects={projects} reports={reports} avances={avances} showToast={showToast} askConfirm={askConfirm} />}
+        {isCoord && view === "proyectos" && <ProjectsManager projects={projects} reports={reports} avances={avances} documents={documents} users={users} showToast={showToast} askConfirm={askConfirm} />}
         {isCoord && view === "usuarios" && <UsersManager users={users} projects={projects} currentUser={currentUser} showToast={showToast} askConfirm={askConfirm} />}
         {view === "documentos" && <DocumentsView user={currentUser} projects={projects} documents={documents} onUpload={saveDocumentFile} onDelete={removeDocumentFile} showToast={showToast} askConfirm={askConfirm} />}
         {view === "sst" && <SSTView user={currentUser} documentosSST={documentosSST} onUpload={saveSSTFile} onDelete={removeSSTFile} showToast={showToast} askConfirm={askConfirm} />}
